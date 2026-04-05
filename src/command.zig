@@ -83,32 +83,47 @@ fn validateCommand(comptime T: type) void {
 const testing = std.testing;
 const TestEnv = @import("env.zig").TestEnv;
 
-const MockCommand = struct {
+const MockSuccessCmd = struct {
     pub fn name() []const u8 {
         return "mock";
     }
     pub fn synopsis() []const u8 {
         return "a mock command";
     }
-    pub fn usage(_: *MockCommand, w: *std.Io.Writer) !void {
+    pub fn usage(_: *MockSuccessCmd, w: *std.Io.Writer) !void {
         try w.print("usage: mock\n", .{});
     }
-    pub fn run(_: *MockCommand, _: []const []const u8, env: *Env) !ExitStatus {
+    pub fn run(_: *MockSuccessCmd, _: []const []const u8, env: *Env) !ExitStatus {
         try env.stdout.print("mock ran\n", .{});
         return .success;
     }
 };
 
 test "Command.from name and synopsis" {
-    var m = MockCommand{};
-    const cmd = Command.from(MockCommand, &m);
+    var m = MockSuccessCmd{};
+    const cmd = Command.from(MockSuccessCmd, &m);
     try testing.expectEqualStrings("mock", cmd.name());
     try testing.expectEqualStrings("a mock command", cmd.synopsis());
 }
 
+const MockFailCmd = struct {
+    pub fn name() []const u8 {
+        return "fail";
+    }
+    pub fn synopsis() []const u8 {
+        return "a failing command";
+    }
+    pub fn usage(_: *MockFailCmd, w: *std.Io.Writer) !void {
+        try w.print("usage: fail\n", .{});
+    }
+    pub fn run(_: *MockFailCmd, _: []const []const u8, _: *Env) !ExitStatus {
+        return .failure;
+    }
+};
+
 test "Command.from run" {
-    var m = MockCommand{};
-    const cmd = Command.from(MockCommand, &m);
+    var m = MockSuccessCmd{};
+    const cmd = Command.from(MockSuccessCmd, &m);
 
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
@@ -119,9 +134,21 @@ test "Command.from run" {
     try testing.expectEqualStrings("mock ran\n", te.out_w.writer.buffered());
 }
 
+test "Command.from run returns failure" {
+    var m = MockFailCmd{};
+    const cmd = Command.from(MockFailCmd, &m);
+
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    const status = try cmd.run(&.{}, @constCast(&e));
+    try testing.expectEqual(ExitStatus.failure, status);
+}
+
 test "Command.from usage" {
-    var m = MockCommand{};
-    const cmd = Command.from(MockCommand, &m);
+    var m = MockSuccessCmd{};
+    const cmd = Command.from(MockSuccessCmd, &m);
 
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();

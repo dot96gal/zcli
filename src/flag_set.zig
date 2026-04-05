@@ -304,3 +304,41 @@ test "FlagSet last wins" {
     try fs.parse(&.{ "--name", "Alice", "--name", "Bob" });
     try testing.expectEqualStrings("Bob", fs.getString("name").?);
 }
+
+test "FlagSet negative int value" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try fs.parse(&.{ "--count", "-5" });
+    try testing.expectEqual(@as(i64, -5), fs.getInt("count").?);
+}
+
+test "FlagSet mixed flags and positionals" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try fs.parse(&.{ "--name", "Alice", "foo", "--verbose", "bar" });
+    try testing.expectEqualStrings("Alice", fs.getString("name").?);
+    try testing.expectEqual(true, fs.getBool("verbose").?);
+    const pos = fs.positionals();
+    try testing.expectEqual(@as(usize, 2), pos.len);
+    try testing.expectEqualStrings("foo", pos[0]);
+    try testing.expectEqualStrings("bar", pos[1]);
+}
+
+test "FlagSet empty string value" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try fs.parse(&.{ "--name", "" });
+    try testing.expectEqualStrings("", fs.getString("name").?);
+}
+
+test "FlagSet unknown short flag error" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try testing.expectError(ParseError.UnknownFlag, fs.parse(&.{"-x"}));
+}
+
+test "FlagSet short flag missing value error" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try testing.expectError(ParseError.MissingValue, fs.parse(&.{"-n"}));
+}
