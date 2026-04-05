@@ -81,17 +81,32 @@ pub const Commander = struct {
 const testing = std.testing;
 const TestEnv = @import("env.zig").TestEnv;
 
-const MockCmd = struct {
+const MockBuildCmd = struct {
+    pub fn name() []const u8 {
+        return "build";
+    }
+    pub fn synopsis() []const u8 {
+        return "build something";
+    }
+    pub fn usage(_: *MockBuildCmd, w: *std.Io.Writer) !void {
+        try w.print("usage: build\n", .{});
+    }
+    pub fn run(_: *MockBuildCmd, _: []const []const u8, _: *Env) !ExitStatus {
+        return .failure;
+    }
+};
+
+const MockGreetCmd = struct {
     pub fn name() []const u8 {
         return "greet";
     }
     pub fn synopsis() []const u8 {
         return "say hello";
     }
-    pub fn usage(_: *MockCmd, w: *std.Io.Writer) !void {
+    pub fn usage(_: *MockGreetCmd, w: *std.Io.Writer) !void {
         try w.print("usage: greet\n", .{});
     }
-    pub fn run(_: *MockCmd, _: []const []const u8, env: *Env) !ExitStatus {
+    pub fn run(_: *MockGreetCmd, _: []const []const u8, env: *Env) !ExitStatus {
         try env.stdout.print("Hello!\n", .{});
         return .success;
     }
@@ -117,8 +132,8 @@ test "Commander runs registered command" {
     var cmdr = Commander.init(e, "mytool", "A test tool");
     defer cmdr.deinit();
 
-    var mc = MockCmd{};
-    try cmdr.register(Command.from(MockCmd, &mc));
+    var mc = MockGreetCmd{};
+    try cmdr.register(Command.from(MockGreetCmd, &mc));
 
     const status = try cmdr.run(&.{ "mytool", "greet" });
     try testing.expectEqual(ExitStatus.success, status);
@@ -146,8 +161,8 @@ test "Commander help with no arg prints top-level" {
     var cmdr = Commander.init(e, "mytool", "A test tool");
     defer cmdr.deinit();
 
-    var mc = MockCmd{};
-    try cmdr.register(Command.from(MockCmd, &mc));
+    var mc = MockGreetCmd{};
+    try cmdr.register(Command.from(MockGreetCmd, &mc));
 
     const status = try cmdr.run(&.{ "mytool", "help" });
     try testing.expectEqual(ExitStatus.success, status);
@@ -162,8 +177,8 @@ test "Commander help <cmd> prints command usage" {
     var cmdr = Commander.init(e, "mytool", "A test tool");
     defer cmdr.deinit();
 
-    var mc = MockCmd{};
-    try cmdr.register(Command.from(MockCmd, &mc));
+    var mc = MockGreetCmd{};
+    try cmdr.register(Command.from(MockGreetCmd, &mc));
 
     const status = try cmdr.run(&.{ "mytool", "help", "greet" });
     try testing.expectEqual(ExitStatus.success, status);
@@ -179,5 +194,50 @@ test "Commander help <unknown> returns failure" {
     defer cmdr.deinit();
 
     const status = try cmdr.run(&.{ "mytool", "help", "nope" });
+    try testing.expectEqual(ExitStatus.failure, status);
+}
+
+test "Commander dispatches to correct command among multiple" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    var cmdr = Commander.init(e, "mytool", "A test tool");
+    defer cmdr.deinit();
+
+    var mc = MockGreetCmd{};
+    var mc2 = MockBuildCmd{};
+    try cmdr.register(Command.from(MockGreetCmd, &mc));
+    try cmdr.register(Command.from(MockBuildCmd, &mc2));
+
+    const status = try cmdr.run(&.{ "mytool", "greet" });
+    try testing.expectEqual(ExitStatus.success, status);
+    try testing.expectEqualStrings("Hello!\n", te.out_w.writer.buffered());
+}
+
+test "Commander run with empty args slice" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    var cmdr = Commander.init(e, "mytool", "A test tool");
+    defer cmdr.deinit();
+
+    const status = try cmdr.run(&.{});
+    try testing.expectEqual(ExitStatus.usage_error, status);
+}
+
+test "Commander propagates command failure status" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    var cmdr = Commander.init(e, "mytool", "A test tool");
+    defer cmdr.deinit();
+
+    var mc2 = MockBuildCmd{};
+    try cmdr.register(Command.from(MockBuildCmd, &mc2));
+
+    const status = try cmdr.run(&.{ "mytool", "build" });
     try testing.expectEqual(ExitStatus.failure, status);
 }

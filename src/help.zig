@@ -26,6 +26,21 @@ pub fn printCommandList(w: *std.Io.Writer, commands: []const Command) !void {
 const testing = std.testing;
 const TestEnv = @import("env.zig").TestEnv;
 const FlagType = @import("flag_set.zig").FlagType;
+const Env = @import("env.zig").Env;
+const ExitStatus = @import("exit_status.zig").ExitStatus;
+
+const MockGreetCmd = struct {
+    pub fn name() []const u8 {
+        return "greet";
+    }
+    pub fn synopsis() []const u8 {
+        return "say hello";
+    }
+    pub fn usage(_: *MockGreetCmd, _: *std.Io.Writer) !void {}
+    pub fn run(_: *MockGreetCmd, _: []const []const u8, _: *Env) !ExitStatus {
+        return .success;
+    }
+};
 
 const test_defs = [_]FlagDef{
     .{ .long = "name", .short = 'n', .flag_type = .{ .string = .{ .default = "World" } }, .description = "Name to greet" },
@@ -47,4 +62,31 @@ test "printFlagHelp" {
     try testing.expect(std.mem.indexOf(u8, out, "default: 1") != null);
     try testing.expect(std.mem.indexOf(u8, out, "--verbose") != null);
     try testing.expect(std.mem.indexOf(u8, out, "default: false") != null);
+}
+
+test "printCommandList outputs name and synopsis" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    var mc = MockGreetCmd{};
+    const cmd = Command.from(MockGreetCmd, &mc);
+    const cmds = [_]Command{cmd};
+
+    try printCommandList(e.stdout, &cmds);
+
+    const out = te.out_w.writer.buffered();
+    try testing.expect(std.mem.indexOf(u8, out, "greet") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "say hello") != null);
+}
+
+test "printCommandList with empty list outputs nothing" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    try printCommandList(e.stdout, &.{});
+
+    const out = te.out_w.writer.buffered();
+    try testing.expectEqualStrings("", out);
 }
