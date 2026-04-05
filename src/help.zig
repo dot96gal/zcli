@@ -1,0 +1,50 @@
+const std = @import("std");
+const FlagDef = @import("flag_set.zig").FlagDef;
+const Command = @import("command.zig").Command;
+
+/// フラグ一覧のヘルプテキストを w に出力する。
+pub fn printFlagHelp(w: *std.Io.Writer, comptime defs: []const FlagDef) !void {
+    inline for (defs) |def| {
+        const default_str: []const u8 = switch (def.flag_type) {
+            .string => |s| s.default,
+            .bool => |b| if (b.default) "true" else "false",
+            .int => |i| comptime std.fmt.comptimePrint("{d}", .{i.default}),
+        };
+        try w.print("  --{s}", .{def.long});
+        if (def.short) |sh| try w.print(", -{c}", .{sh});
+        try w.print("\n        {s} (default: {s})\n", .{ def.description, default_str });
+    }
+}
+
+/// コマンド一覧（name + synopsis）を w に出力する。
+pub fn printCommandList(w: *std.Io.Writer, commands: []const Command) !void {
+    for (commands) |cmd| {
+        try w.print("  {s}\n        {s}\n", .{ cmd.name(), cmd.synopsis() });
+    }
+}
+
+const testing = std.testing;
+const TestEnv = @import("env.zig").TestEnv;
+const FlagType = @import("flag_set.zig").FlagType;
+
+const test_defs = [_]FlagDef{
+    .{ .long = "name", .short = 'n', .flag_type = .{ .string = .{ .default = "World" } }, .description = "Name to greet" },
+    .{ .long = "count", .short = 'c', .flag_type = .{ .int = .{ .default = 1 } }, .description = "Times" },
+    .{ .long = "verbose", .short = null, .flag_type = .{ .bool = .{ .default = false } }, .description = "Verbose" },
+};
+
+test "printFlagHelp" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    try printFlagHelp(e.stdout, &test_defs);
+
+    const out = te.out_w.writer.buffered();
+    try testing.expect(std.mem.indexOf(u8, out, "--name, -n") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "default: World") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "--count, -c") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "default: 1") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "--verbose") != null);
+    try testing.expect(std.mem.indexOf(u8, out, "default: false") != null);
+}

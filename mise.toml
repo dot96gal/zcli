@@ -1,0 +1,19 @@
+[tools]
+zig = "0.15.2"
+
+[tasks.build]
+description = "build"
+run = "zig build --summary all"
+
+[tasks.test]
+description = "test"
+run = "zig build test --summary all"
+
+# 呼び出し例:
+#   mise run example
+#   mise run example -- greet --name Alice --count 3 --excited
+#   mise run example -- help greet
+[tasks.example]
+description = "run example"
+run = "zig build run --summary all -- $@"
+
