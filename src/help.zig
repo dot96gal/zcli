@@ -90,3 +90,53 @@ test "printCommandList with empty list outputs nothing" {
     const out = te.out_w.writer.buffered();
     try testing.expectEqualStrings("", out);
 }
+
+test "printFlagHelp exact format with short option" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    const defs = [_]FlagDef{
+        .{ .long = "name", .short = 'n', .flag_type = .{ .string = .{ .default = "World" } }, .description = "Name to greet" },
+    };
+    try printFlagHelp(e.stdout, &defs);
+
+    try testing.expectEqualStrings("  --name, -n\n        Name to greet (default: World)\n", te.out_w.writer.buffered());
+}
+
+test "printFlagHelp exact format without short option" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    const defs = [_]FlagDef{
+        .{ .long = "verbose", .short = null, .flag_type = .{ .bool = .{ .default = false } }, .description = "Verbose" },
+    };
+    try printFlagHelp(e.stdout, &defs);
+
+    try testing.expectEqualStrings("  --verbose\n        Verbose (default: false)\n", te.out_w.writer.buffered());
+}
+
+test "printFlagHelp with no flags outputs nothing" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    try printFlagHelp(e.stdout, &.{});
+
+    try testing.expectEqualStrings("", te.out_w.writer.buffered());
+}
+
+test "printCommandList exact format" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    var mc = MockGreetCmd{};
+    const cmd = Command.from(MockGreetCmd, &mc);
+    const cmds = [_]Command{cmd};
+
+    try printCommandList(e.stdout, &cmds);
+
+    try testing.expectEqualStrings("  greet\n        say hello\n", te.out_w.writer.buffered());
+}

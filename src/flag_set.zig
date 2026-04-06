@@ -342,3 +342,38 @@ test "FlagSet short flag missing value error" {
     defer fs.deinit();
     try testing.expectError(ParseError.MissingValue, fs.parse(&.{"-n"}));
 }
+
+test "FlagSet getString returns null for bool flag" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try fs.parse(&.{});
+    try testing.expect(fs.getString("verbose") == null);
+}
+
+test "FlagSet getBool returns null for string flag" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try fs.parse(&.{});
+    try testing.expect(fs.getBool("name") == null);
+}
+
+test "FlagSet getInt returns null for string flag" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try fs.parse(&.{});
+    try testing.expect(fs.getInt("name") == null);
+}
+
+test "FlagSet getString returns null for unknown name" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try fs.parse(&.{});
+    try testing.expect(fs.getString("nonexistent") == null);
+}
+
+test "FlagSet inline empty value --name=" {
+    var fs = FlagSet.init(testing.allocator, &test_defs);
+    defer fs.deinit();
+    try fs.parse(&.{"--name="});
+    try testing.expectEqualStrings("", fs.getString("name").?);
+}
