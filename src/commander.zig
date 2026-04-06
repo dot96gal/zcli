@@ -241,3 +241,64 @@ test "Commander propagates command failure status" {
     const status = try cmdr.run(&.{ "mytool", "build" });
     try testing.expectEqual(ExitStatus.failure, status);
 }
+
+const MockArgCapture = struct {
+    captured: []const []const u8 = &.{},
+
+    pub fn name() []const u8 {
+        return "capture";
+    }
+    pub fn synopsis() []const u8 {
+        return "capture args";
+    }
+    pub fn usage(_: *MockArgCapture, _: *std.Io.Writer) !void {}
+    pub fn run(self: *MockArgCapture, argv: []const []const u8, _: *Env) !ExitStatus {
+        self.captured = argv;
+        return .success;
+    }
+};
+
+test "Commander passes args to subcommand" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    var cmdr = Commander.init(e, "mytool", "A test tool");
+    defer cmdr.deinit();
+
+    var mc = MockArgCapture{};
+    try cmdr.register(Command.from(MockArgCapture, &mc));
+
+    _ = try cmdr.run(&.{ "mytool", "capture", "foo", "bar" });
+    try testing.expectEqual(@as(usize, 2), mc.captured.len);
+    try testing.expectEqualStrings("foo", mc.captured[0]);
+    try testing.expectEqualStrings("bar", mc.captured[1]);
+}
+
+test "Commander top-level help exact format" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    var cmdr = Commander.init(e, "mytool", "A test tool");
+    defer cmdr.deinit();
+
+    var mc = MockGreetCmd{};
+    try cmdr.register(Command.from(MockGreetCmd, &mc));
+
+    const status = try cmdr.run(&.{ "mytool", "help" });
+    try testing.expectEqual(ExitStatus.success, status);
+    try testing.expectEqualStrings("mytool: A test tool\n\nCommands:\n  greet\n        say hello\n", te.out_w.writer.buffered());
+}
+
+test "Commander unknown command writes to stderr" {
+    var te = TestEnv.init(testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    var cmdr = Commander.init(e, "mytool", "A test tool");
+    defer cmdr.deinit();
+
+    _ = try cmdr.run(&.{ "mytool", "unknown" });
+    try testing.expectEqualStrings("unknown command: unknown\n\n", te.err_w.writer.buffered());
+}
