@@ -42,7 +42,7 @@ const MockGreetCmd = struct {
     }
 };
 
-const test_defs = [_]FlagDef{
+const TEST_DEFS = [_]FlagDef{
     .{ .long = "name", .short = 'n', .flag_type = .{ .string = .{ .default = "World" } }, .description = "Name to greet" },
     .{ .long = "count", .short = 'c', .flag_type = .{ .int = .{ .default = 1 } }, .description = "Times" },
     .{ .long = "verbose", .short = null, .flag_type = .{ .bool = .{ .default = false } }, .description = "Verbose" },
@@ -53,7 +53,7 @@ test "printFlagHelp" {
     defer te.deinit();
     const e = te.env();
 
-    try printFlagHelp(e.stdout, &test_defs);
+    try printFlagHelp(e.stdout, &TEST_DEFS);
 
     const out = te.out_w.writer.buffered();
     try testing.expect(std.mem.indexOf(u8, out, "--name, -n") != null);

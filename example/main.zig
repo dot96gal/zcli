@@ -36,7 +36,7 @@ pub fn main() !void {
         break :blk zcli.ExitStatus.failure;
     };
     // std.process.exit はデファーをスキップするため exit() 前に明示的にフラッシュ
-    stdout_w.interface.flush() catch {};
-    stderr_w.interface.flush() catch {};
+    stdout_w.interface.flush() catch |err| std.debug.print("stdout flush error: {s}\n", .{@errorName(err)});
+    stderr_w.interface.flush() catch |err| std.debug.print("stderr flush error: {s}\n", .{@errorName(err)});
     status.exit();
 }

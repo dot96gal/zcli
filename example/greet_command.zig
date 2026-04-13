@@ -1,7 +1,7 @@
 const std = @import("std");
 const zcli = @import("zcli");
 
-const greet_flags = [_]zcli.FlagDef{
+const GREET_FLAGS = [_]zcli.FlagDef{
     .{
         .long = "name",
         .short = 'n',
@@ -32,11 +32,11 @@ pub const GreetCommand = struct {
 
     pub fn usage(_: *GreetCommand, w: *std.Io.Writer) !void {
         try w.print("usage: <program> greet [flags]\n\nFlags:\n", .{});
-        try zcli.help.printFlagHelp(w, &greet_flags);
+        try zcli.help.printFlagHelp(w, &GREET_FLAGS);
     }
 
     pub fn run(_: *GreetCommand, args: []const []const u8, env: *zcli.Env) !zcli.ExitStatus {
-        var fs = zcli.FlagSet.init(env.allocator, &greet_flags);
+        var fs = zcli.FlagSet.init(env.allocator, &GREET_FLAGS);
         defer fs.deinit();
 
         fs.parse(args) catch |err| {

@@ -8,7 +8,7 @@ pub const Commander = struct {
     env: Env,
     program: []const u8,
     description: []const u8,
-    commands: std.ArrayList(Command),
+    commands: std.ArrayListUnmanaged(Command),
 
     pub fn init(env: Env, program: []const u8, description: []const u8) Commander {
         return .{

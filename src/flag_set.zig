@@ -32,7 +32,7 @@ pub const FlagSet = struct {
     defs: []const FlagDef,
     values: std.StringHashMap(FlagValue),
     /// 内部フィールド。直接アクセスせず positionals() メソッドを使うこと。
-    positionals_buf: std.ArrayList([]const u8),
+    positionals_buf: std.ArrayListUnmanaged([]const u8),
 
     pub fn init(allocator: std.mem.Allocator, comptime defs: []const FlagDef) FlagSet {
         return .{
@@ -203,14 +203,14 @@ pub const FlagSet = struct {
 
 const testing = std.testing;
 
-const test_defs = [_]FlagDef{
+const TEST_DEFS = [_]FlagDef{
     .{ .long = "name", .short = 'n', .flag_type = .{ .string = .{ .default = "World" } }, .description = "Name" },
     .{ .long = "count", .short = 'c', .flag_type = .{ .int = .{ .default = 1 } }, .description = "Count" },
     .{ .long = "verbose", .short = 'v', .flag_type = .{ .bool = .{ .default = false } }, .description = "Verbose" },
 };
 
 test "FlagSet defaults" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{});
     try testing.expectEqualStrings("World", fs.getString("name").?);
@@ -219,49 +219,49 @@ test "FlagSet defaults" {
 }
 
 test "FlagSet long flag --name Alice" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{ "--name", "Alice" });
     try testing.expectEqualStrings("Alice", fs.getString("name").?);
 }
 
 test "FlagSet long flag --name=Alice" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{"--name=Alice"});
     try testing.expectEqualStrings("Alice", fs.getString("name").?);
 }
 
 test "FlagSet short flag -n Alice" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{ "-n", "Alice" });
     try testing.expectEqualStrings("Alice", fs.getString("name").?);
 }
 
 test "FlagSet bool flag --verbose" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{"--verbose"});
     try testing.expectEqual(true, fs.getBool("verbose").?);
 }
 
 test "FlagSet bool flag -v" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{"-v"});
     try testing.expectEqual(true, fs.getBool("verbose").?);
 }
 
 test "FlagSet int flag --count 3" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{ "--count", "3" });
     try testing.expectEqual(@as(i64, 3), fs.getInt("count").?);
 }
 
 test "FlagSet positional args" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{ "foo", "bar" });
     const pos = fs.positionals();
@@ -271,7 +271,7 @@ test "FlagSet positional args" {
 }
 
 test "FlagSet -- passthrough" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{ "--", "--name", "Alice" });
     const pos = fs.positionals();
@@ -281,39 +281,39 @@ test "FlagSet -- passthrough" {
 }
 
 test "FlagSet unknown flag error" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try testing.expectError(ParseError.UnknownFlag, fs.parse(&.{"--unknown"}));
 }
 
 test "FlagSet missing value error" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try testing.expectError(ParseError.MissingValue, fs.parse(&.{"--name"}));
 }
 
 test "FlagSet invalid int error" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try testing.expectError(ParseError.InvalidIntValue, fs.parse(&.{ "--count", "abc" }));
 }
 
 test "FlagSet last wins" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{ "--name", "Alice", "--name", "Bob" });
     try testing.expectEqualStrings("Bob", fs.getString("name").?);
 }
 
 test "FlagSet negative int value" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{ "--count", "-5" });
     try testing.expectEqual(@as(i64, -5), fs.getInt("count").?);
 }
 
 test "FlagSet mixed flags and positionals" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{ "--name", "Alice", "foo", "--verbose", "bar" });
     try testing.expectEqualStrings("Alice", fs.getString("name").?);
@@ -325,54 +325,54 @@ test "FlagSet mixed flags and positionals" {
 }
 
 test "FlagSet empty string value" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{ "--name", "" });
     try testing.expectEqualStrings("", fs.getString("name").?);
 }
 
 test "FlagSet unknown short flag error" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try testing.expectError(ParseError.UnknownFlag, fs.parse(&.{"-x"}));
 }
 
 test "FlagSet short flag missing value error" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try testing.expectError(ParseError.MissingValue, fs.parse(&.{"-n"}));
 }
 
 test "FlagSet getString returns null for bool flag" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{});
     try testing.expect(fs.getString("verbose") == null);
 }
 
 test "FlagSet getBool returns null for string flag" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{});
     try testing.expect(fs.getBool("name") == null);
 }
 
 test "FlagSet getInt returns null for string flag" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{});
     try testing.expect(fs.getInt("name") == null);
 }
 
 test "FlagSet getString returns null for unknown name" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{});
     try testing.expect(fs.getString("nonexistent") == null);
 }
 
 test "FlagSet inline empty value --name=" {
-    var fs = FlagSet.init(testing.allocator, &test_defs);
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
     defer fs.deinit();
     try fs.parse(&.{"--name="});
     try testing.expectEqualStrings("", fs.getString("name").?);
