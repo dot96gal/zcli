@@ -32,7 +32,7 @@ pub fn main() !void {
     try cmdr.register(zcli.Command.from(GreetCommand, &greet));
 
     const status = cmdr.run(args) catch |err| blk: {
-        std.debug.print("error: {s}\n", .{@errorName(err)});
+        try stderr_w.interface.print("error: {s}\n", .{@errorName(err)});
         break :blk zcli.ExitStatus.failure;
     };
     // std.process.exit はデファーをスキップするため exit() 前に明示的にフラッシュ
