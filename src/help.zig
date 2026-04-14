@@ -2,6 +2,9 @@ const std = @import("std");
 const FlagDef = @import("flag_set.zig").FlagDef;
 const Command = @import("command.zig").Command;
 
+const ITEM_INDENT = "  ";
+const DESC_INDENT = "        ";
+
 /// フラグ一覧のヘルプテキストを w に出力する。
 pub fn printFlagHelp(w: *std.Io.Writer, comptime defs: []const FlagDef) !void {
     inline for (defs) |def| {
@@ -10,16 +13,16 @@ pub fn printFlagHelp(w: *std.Io.Writer, comptime defs: []const FlagDef) !void {
             .bool => |b| if (b.default) "true" else "false",
             .int => |i| comptime std.fmt.comptimePrint("{d}", .{i.default}),
         };
-        try w.print("  --{s}", .{def.long});
+        try w.print(ITEM_INDENT ++ "--{s}", .{def.long});
         if (def.short) |sh| try w.print(", -{c}", .{sh});
-        try w.print("\n        {s} (default: {s})\n", .{ def.description, default_str });
+        try w.print("\n" ++ DESC_INDENT ++ "{s} (default: {s})\n", .{ def.description, default_str });
     }
 }
 
 /// コマンド一覧（name + synopsis）を w に出力する。
 pub fn printCommandList(w: *std.Io.Writer, commands: []const Command) !void {
     for (commands) |cmd| {
-        try w.print("  {s}\n        {s}\n", .{ cmd.name(), cmd.synopsis() });
+        try w.print(ITEM_INDENT ++ "{s}\n" ++ DESC_INDENT ++ "{s}\n", .{ cmd.name(), cmd.synopsis() });
     }
 }
 

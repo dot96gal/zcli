@@ -30,7 +30,7 @@ pub const ParseError = error{
 pub const FlagSet = struct {
     allocator: std.mem.Allocator,
     defs: []const FlagDef,
-    values: std.StringHashMap(FlagValue),
+    values: std.StringHashMapUnmanaged(FlagValue),
     /// 内部フィールド。直接アクセスせず positionals() メソッドを使うこと。
     positionals_buf: std.ArrayListUnmanaged([]const u8),
 
@@ -38,7 +38,7 @@ pub const FlagSet = struct {
         return .{
             .allocator = allocator,
             .defs = defs,
-            .values = std.StringHashMap(FlagValue).init(allocator),
+            .values = .{},
             .positionals_buf = .empty,
         };
     }
@@ -52,7 +52,7 @@ pub const FlagSet = struct {
                 else => {},
             }
         }
-        self.values.deinit();
+        self.values.deinit(self.allocator);
         for (self.positionals_buf.items) |p| {
             self.allocator.free(p);
         }
@@ -93,14 +93,19 @@ pub const FlagSet = struct {
                 }
             } else if (arg.len == 2 and arg[0] == '-') {
                 const short_char = arg[1];
-                const def = self.findShort(short_char) orelse return ParseError.UnknownFlag;
-                switch (def.flag_type) {
-                    .bool => try self.storeBool(def.long, true),
-                    else => {
-                        if (i + 1 >= args.len) return ParseError.MissingValue;
-                        i += 1;
-                        try self.store(def, def.long, args[i]);
-                    },
+                if (short_char >= '0' and short_char <= '9') {
+                    const duped = try self.allocator.dupe(u8, arg);
+                    try self.positionals_buf.append(self.allocator, duped);
+                } else {
+                    const def = self.findShort(short_char) orelse return ParseError.UnknownFlag;
+                    switch (def.flag_type) {
+                        .bool => try self.storeBool(def.long, true),
+                        else => {
+                            if (i + 1 >= args.len) return ParseError.MissingValue;
+                            i += 1;
+                            try self.store(def, def.long, args[i]);
+                        },
+                    }
                 }
             } else {
                 const duped = try self.allocator.dupe(u8, arg);
@@ -120,7 +125,7 @@ pub const FlagSet = struct {
                     .bool => |b| .{ .bool = b.default },
                     .int => |n| .{ .int = n.default },
                 };
-                try self.values.put(key, val);
+                try self.values.put(self.allocator, key, val);
             }
         }
     }
@@ -187,7 +192,7 @@ pub const FlagSet = struct {
             entry.value_ptr.* = val;
         } else {
             const k = try self.allocator.dupe(u8, key);
-            try self.values.put(k, val);
+            try self.values.put(self.allocator, k, val);
         }
     }
 
@@ -196,7 +201,7 @@ pub const FlagSet = struct {
             entry.value_ptr.* = .{ .bool = val };
         } else {
             const k = try self.allocator.dupe(u8, key);
-            try self.values.put(k, .{ .bool = val });
+            try self.values.put(self.allocator, k, .{ .bool = val });
         }
     }
 };
@@ -310,6 +315,15 @@ test "FlagSet negative int value" {
     defer fs.deinit();
     try fs.parse(&.{ "--count", "-5" });
     try testing.expectEqual(@as(i64, -5), fs.getInt("count").?);
+}
+
+test "FlagSet single-digit negative number as positional" {
+    var fs = FlagSet.init(testing.allocator, &TEST_DEFS);
+    defer fs.deinit();
+    try fs.parse(&.{"-5"});
+    const pos = fs.positionals();
+    try testing.expectEqual(@as(usize, 1), pos.len);
+    try testing.expectEqualStrings("-5", pos[0]);
 }
 
 test "FlagSet mixed flags and positionals" {

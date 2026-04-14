@@ -127,9 +127,9 @@ test "Command.from run" {
 
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
-    const e = te.env();
+    var e = te.env();
 
-    const status = try cmd.run(&.{}, @constCast(&e));
+    const status = try cmd.run(&.{}, &e);
     try testing.expectEqual(ExitStatus.success, status);
     try testing.expectEqualStrings("mock ran\n", te.out_w.writer.buffered());
 }
@@ -140,9 +140,9 @@ test "Command.from run returns failure" {
 
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
-    const e = te.env();
+    var e = te.env();
 
-    const status = try cmd.run(&.{}, @constCast(&e));
+    const status = try cmd.run(&.{}, &e);
     try testing.expectEqual(ExitStatus.failure, status);
 }
 
