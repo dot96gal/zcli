@@ -26,3 +26,12 @@ run = "zig build test --summary all"
 description = "run example"
 run = "zig build run --summary all -- $@"
 
+[tasks.build-docs]
+description = "build API documentation"
+run = "zig build docs --summary all"
+
+[tasks.serve-docs]
+description = "serve API documentation"
+depends = ["build-docs"]
+run = "npx --yes serve zig-out/docs"
+

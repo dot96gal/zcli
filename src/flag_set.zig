@@ -1,15 +1,24 @@
 const std = @import("std");
 
+/// フラグの値型と各型のデフォルト値を保持する union。
 pub const FlagType = union(enum) {
+    /// 文字列フラグ。デフォルト値は `[]const u8`。
     string: struct { default: []const u8 },
+    /// 真偽値フラグ。デフォルト値は `bool`。
     bool: struct { default: bool },
+    /// 整数フラグ。デフォルト値は `i64`。
     int: struct { default: i64 },
 };
 
+/// フラグ定義。`FlagSet.init` の `comptime defs` に渡す。
 pub const FlagDef = struct {
+    /// ロングフラグ名（`--name` の `name` 部分）。
     long: []const u8,
+    /// ショートフラグ文字（`-n` の `n`）。不要な場合は `null`。
     short: ?u8,
+    /// フラグの型とデフォルト値。
     flag_type: FlagType,
+    /// ヘルプテキストに表示する説明文。
     description: []const u8,
 };
 
@@ -20,13 +29,19 @@ const FlagValue = union(enum) {
     int: i64,
 };
 
+/// フラグパース時のエラー集合。
 pub const ParseError = error{
+    /// 定義されていないフラグが指定された。
     UnknownFlag,
+    /// 値が必要なフラグに値が渡されなかった。
     MissingValue,
+    /// 整数フラグに整数として解釈できない値が渡された。
     InvalidIntValue,
+    /// メモリ確保に失敗した。
     OutOfMemory,
 };
 
+/// フラグパーサー。`--long`、`-s`、`--key=val`、`--` に対応。
 pub const FlagSet = struct {
     allocator: std.mem.Allocator,
     defs: []const FlagDef,
@@ -34,6 +49,7 @@ pub const FlagSet = struct {
     /// 内部フィールド。直接アクセスせず positionals() メソッドを使うこと。
     positionals_buf: std.ArrayListUnmanaged([]const u8),
 
+    /// `defs` を受け取り `FlagSet` を初期化する。
     pub fn init(allocator: std.mem.Allocator, comptime defs: []const FlagDef) FlagSet {
         return .{
             .allocator = allocator,
@@ -43,6 +59,7 @@ pub const FlagSet = struct {
         };
     }
 
+    /// 所有するメモリをすべて解放する。
     pub fn deinit(self: *FlagSet) void {
         var it = self.values.iterator();
         while (it.next()) |entry| {
@@ -59,6 +76,7 @@ pub const FlagSet = struct {
         self.positionals_buf.deinit(self.allocator);
     }
 
+    /// `args` を解析してフラグと位置引数を取り込む。エラー時は `ParseError` を返す。
     pub fn parse(self: *FlagSet, args: []const []const u8) ParseError!void {
         var i: usize = 0;
         while (i < args.len) : (i += 1) {
@@ -130,10 +148,12 @@ pub const FlagSet = struct {
         }
     }
 
+    /// フラグ以外の位置引数の一覧を返す。
     pub fn positionals(self: *const FlagSet) []const []const u8 {
         return self.positionals_buf.items;
     }
 
+    /// 文字列フラグ `name` の値を返す。未定義または型不一致の場合は `null`。
     pub fn getString(self: *const FlagSet, name: []const u8) ?[]const u8 {
         const val = self.values.get(name) orelse return null;
         return switch (val) {
@@ -142,6 +162,7 @@ pub const FlagSet = struct {
         };
     }
 
+    /// 真偽値フラグ `name` の値を返す。未定義または型不一致の場合は `null`。
     pub fn getBool(self: *const FlagSet, name: []const u8) ?bool {
         const val = self.values.get(name) orelse return null;
         return switch (val) {
@@ -150,6 +171,7 @@ pub const FlagSet = struct {
         };
     }
 
+    /// 整数フラグ `name` の値を返す。未定義または型不一致の場合は `null`。
     pub fn getInt(self: *const FlagSet, name: []const u8) ?i64 {
         const val = self.values.get(name) orelse return null;
         return switch (val) {

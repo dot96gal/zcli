@@ -14,13 +14,7 @@
 
 ## 開発
 
-mise タスクでコマンドを実行する。
-
-- `mise run build`: ビルド（`zig build --summary all`）
-- `mise run test`: テスト（`zig build test --summary all`）
-- `mise run example`: 実行（`zig build run --summary all -- $@`、引数付き例: `mise run example -- greet --name Alice`）
-- `mise run fmt`: フォーマット（`zig fmt src/`）
-- `mise run fmt-check`: フォーマットチェック（`zig fmt --check src/`）
+- mise タスクでコマンドを実行する。利用可能なタスクは `mise.toml` を参照すること。
 
 ## 依存関係
 
@@ -28,6 +22,4 @@ mise タスクでコマンドを実行する。
 
 ## コーディング規約
 
-~/.claude/rules/zig.md を参照すること。
-
-
+- `~/.claude/rules/zig.md` を参照すること。

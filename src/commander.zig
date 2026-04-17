@@ -4,12 +4,14 @@ const Env = @import("env.zig").Env;
 const ExitStatus = @import("exit_status.zig").ExitStatus;
 const help = @import("help.zig");
 
+/// サブコマンドのルーティングと組み込み `help` コマンドの処理を担うルーター。
 pub const Commander = struct {
     env: Env,
     program: []const u8,
     description: []const u8,
     commands: std.ArrayListUnmanaged(Command),
 
+    /// `env`、プログラム名、説明文を受け取り `Commander` を初期化する。
     pub fn init(env: Env, program: []const u8, description: []const u8) Commander {
         return .{
             .env = env,
@@ -19,16 +21,19 @@ pub const Commander = struct {
         };
     }
 
+    /// 登録済みコマンドリストを解放する。
     pub fn deinit(self: *Commander) void {
         self.commands.deinit(self.env.allocator);
     }
 
+    /// サブコマンドを登録する。
     /// コマンドインスタンスの寿命は Commander より長くなければならない。
     /// Commander はポインタを保持するが所有権は持たない。
     pub fn register(self: *Commander, cmd: Command) !void {
         try self.commands.append(self.env.allocator, cmd);
     }
 
+    /// `args`（`argv[0]` 含む全引数）を受け取り、サブコマンドへディスパッチする。
     pub fn run(self: *Commander, args: []const []const u8) !ExitStatus {
         const argv = if (args.len > 0) args[1..] else args;
 

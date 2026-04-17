@@ -212,9 +212,11 @@ zcli/
 ### 開発タスク
 
 ```sh
-mise run build    # zig build --summary all
-mise run test     # zig build test --summary all
-mise run example  # example を実行（引数は -- 以降に渡す）
+mise run build        # zig build --summary all
+mise run test         # zig build test --summary all
+mise run example      # example を実行（引数は -- 以降に渡す）
+mise run build-docs   # zig build docs --summary all（API ドキュメントを生成）
+mise run serve-docs   # ドキュメントをローカルサーバーで配信する（Ctrl+C で停止）
 ```
 
 `example` タスクの呼び出し例:

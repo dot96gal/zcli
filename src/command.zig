@@ -2,10 +2,13 @@ const std = @import("std");
 const Env = @import("env.zig").Env;
 const ExitStatus = @import("exit_status.zig").ExitStatus;
 
+/// vtable ベースのサブコマンドインターフェース。
+/// `Command.from(T, ptr)` で任意の型から生成する。
 pub const Command = struct {
     ptr: *anyopaque,
     vtable: *const VTable,
 
+    /// vtable の関数ポインタ定義。`Command.from` が comptime に生成する。
     pub const VTable = struct {
         name: *const fn () []const u8,
         synopsis: *const fn () []const u8,
@@ -13,24 +16,28 @@ pub const Command = struct {
         run: *const fn (*anyopaque, []const []const u8, *Env) anyerror!ExitStatus,
     };
 
+    /// コマンド名を返す。
     pub fn name(self: Command) []const u8 {
         return self.vtable.name();
     }
 
+    /// コマンドの短い説明を返す。
     pub fn synopsis(self: Command) []const u8 {
         return self.vtable.synopsis();
     }
 
+    /// 使い方を `w` に出力する。
     pub fn usage(self: Command, w: *std.Io.Writer) !void {
         return self.vtable.usage(self.ptr, w);
     }
 
+    /// コマンドを実行して `ExitStatus` を返す。
     pub fn run(self: Command, args: []const []const u8, env: *Env) !ExitStatus {
         return self.vtable.run(self.ptr, args, env);
     }
 
-    /// T型からvtableを自動生成し Command を返す。
-    /// T は name/synopsis/usage/run を宣言していなければコンパイルエラー。
+    /// 型 `T` から vtable を自動生成し `Command` を返す。
+    /// `T` は `name`/`synopsis`/`usage`/`run` を宣言していなければコンパイルエラー。
     pub fn from(comptime T: type, ptr: *T) Command {
         comptime validateCommand(T);
 
