@@ -4,7 +4,7 @@
 
 ## 動作要件
 
-- Zig 0.15.x
+- Zig 0.16.x
 
 ## 利用者向け
 
@@ -89,20 +89,16 @@ const std = @import("std");
 const zcli = @import("zcli");
 const GreetCommand = @import("greet_command.zig").GreetCommand;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}) {};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    const raw_args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, raw_args);
-    const args: []const []const u8 = raw_args;
+pub fn main(env: std.process.Init) !void {
+    const allocator = env.gpa;
+    const raw_args = try env.minimal.args.toSlice(env.arena.allocator());
+    const args: []const []const u8 = @ptrCast(raw_args);
 
     // Commander より先にバッファ付き writer を宣言してライフタイムを包む。
     var stdout_buf: [4096]u8 = undefined;
     var stderr_buf: [512]u8 = undefined;
-    var stdout_w = std.fs.File.stdout().writer(&stdout_buf);
-    var stderr_w = std.fs.File.stderr().writer(&stderr_buf);
+    var stdout_w = std.Io.File.stdout().writer(env.io, &stdout_buf);
+    var stderr_w = std.Io.File.stderr().writer(env.io, &stderr_buf);
 
     var cmdr = zcli.Commander.init(
         zcli.Env{
@@ -234,7 +230,7 @@ mise run example -- help greet
 - **外部依存なし** — `std` のみを使用する。
 - **`Env` による依存性注入** — stdout、stderr、allocator を明示的に渡すことで、プロセス I/O なしにコマンドをテスト可能にする。
 - **コンパイル時 vtable** — `Command.from(T, ptr)` がコンパイル時に vtable を生成し、`comptime validateCommand` でインターフェースを検証する。宣言漏れはコンパイルエラーとして明示される。
-- **アンマネージドコレクション** — `std.ArrayList` はアロケータを内部に持たない形式（Zig 0.15 デフォルト）で使用し、アロケータは呼び出し元から明示的に渡す。
+- **アンマネージドコレクション** — `std.ArrayList` はアロケータを内部に持たない形式で使用し、アロケータは呼び出し元から明示的に渡す。
 - **`*std.Io.Writer` はポインタ渡し** — `std.Io.Writer` は内部で `@fieldParentPtr` を使用するため値コピーが不可。`Env` は `*std.Io.Writer` を保持する。バッキング writer 構造体のライフタイムは参照する `Env` や `Commander` を包まなければならない。
 - **exit 前の明示的フラッシュ** — `std.process.exit()` は defer をスキップするため、`ExitStatus.exit()` を呼ぶ前にバッファ付き writer を手動でフラッシュする必要がある。
 

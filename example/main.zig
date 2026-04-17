@@ -2,20 +2,16 @@ const std = @import("std");
 const zcli = @import("zcli");
 const GreetCommand = @import("greet_command.zig").GreetCommand;
 
-pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    const raw_args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, raw_args);
-    const args: []const []const u8 = raw_args;
+pub fn main(env: std.process.Init) !void {
+    const allocator = env.gpa;
+    const raw_args = try env.minimal.args.toSlice(env.arena.allocator());
+    const args: []const []const u8 = @ptrCast(raw_args);
 
     // バッファ付き writer を生成。cmdr より先に宣言して寿命を包む。
     var stdout_buf: [4096]u8 = undefined;
     var stderr_buf: [512]u8 = undefined;
-    var stdout_w = std.fs.File.stdout().writer(&stdout_buf);
-    var stderr_w = std.fs.File.stderr().writer(&stderr_buf);
+    var stdout_w = std.Io.File.stdout().writer(env.io, &stdout_buf);
+    var stderr_w = std.Io.File.stderr().writer(env.io, &stderr_buf);
 
     var cmdr = zcli.Commander.init(
         zcli.Env{
