@@ -1,8 +1,9 @@
 # zcli
 
-シンプルな Zig 製 CLI フレームワーク。
+[![API Docs](https://img.shields.io/badge/API%20Docs-GitHub%20Pages-blue)](https://dot96gal.github.io/zcli/)
+[![test](https://github.com/dot96gal/zcli/actions/workflows/test.yml/badge.svg)](https://github.com/dot96gal/zcli/actions/workflows/test.yml)
 
-[API ドキュメント](https://dot96gal.github.io/zcli/)
+シンプルな Zig 製 CLI フレームワーク。
 
 ## 動作要件
 
