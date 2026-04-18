@@ -8,7 +8,8 @@ pub const Command = struct {
     ptr: *anyopaque,
     vtable: *const VTable,
 
-    /// vtable の関数ポインタ定義。`Command.from` が comptime に生成する。
+    /// vtable に格納する関数ポインタの定義。
+    /// `Command.from` が comptime で自動生成する。
     pub const VTable = struct {
         name: *const fn () []const u8,
         synopsis: *const fn () []const u8,
@@ -37,7 +38,7 @@ pub const Command = struct {
     }
 
     /// 型 `T` から vtable を自動生成し `Command` を返す。
-    /// `T` は `name`/`synopsis`/`usage`/`run` を宣言していなければコンパイルエラー。
+    /// `T` が `name`/`synopsis`/`usage`/`run` を宣言していない場合はコンパイルエラーになる。
     pub fn from(comptime T: type, ptr: *T) Command {
         comptime validateCommand(T);
 
@@ -71,7 +72,8 @@ pub const Command = struct {
     }
 };
 
-/// Command.from() から呼ばれる内部検証関数。直接呼び出し不要。
+/// `Command.from()` から内部的に呼び出される検証関数。
+/// 直接呼び出さないでください。
 fn validateCommand(comptime T: type) void {
     const ti = @typeInfo(T);
     if (ti != .@"struct")

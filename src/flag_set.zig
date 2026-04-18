@@ -2,34 +2,36 @@ const std = @import("std");
 
 /// フラグの値型と各型のデフォルト値を保持する union。
 pub const FlagType = union(enum) {
-    /// 文字列フラグ。デフォルト値は `[]const u8`。
+    /// 文字列型フラグ。デフォルト値の型は `[]const u8` になる。
     string: struct { default: []const u8 },
-    /// 真偽値フラグ。デフォルト値は `bool`。
+    /// 真偑値型フラグ。デフォルト値の型は `bool` になる。
     bool: struct { default: bool },
-    /// 整数フラグ。デフォルト値は `i64`。
+    /// 整数型フラグ。デフォルト値の型は `i64` になる。
     int: struct { default: i64 },
 };
 
-/// フラグ定義。`FlagSet.init` の `comptime defs` に渡す。
+/// フラグの定義を表す構造体。
+/// `FlagSet.init` の `comptime defs` に渡してください。
 pub const FlagDef = struct {
     /// ロングフラグ名（`--name` の `name` 部分）。
     long: []const u8,
-    /// ショートフラグ文字（`-n` の `n`）。不要な場合は `null`。
+    /// ショートフラグ文字（`-n` の `n`）。不要な場合は `null` を指定する。
     short: ?u8,
-    /// フラグの型とデフォルト値。
+    /// フラグの型とデフォルト値を指定する。
     flag_type: FlagType,
-    /// ヘルプテキストに表示する説明文。
+    /// ヘルプテキストに表示する説明文を指定する。
     description: []const u8,
 };
 
-/// 内部型。利用者は getString/getBool/getInt 経由でアクセスするため直接使用しないこと。
+/// 内部で使用する型。
+/// 利用者は `getString`/`getBool`/`getInt` 経由でアクセスするため直接使用しないでください。
 const FlagValue = union(enum) {
     string: []const u8,
     bool: bool,
     int: i64,
 };
 
-/// フラグパース時のエラー集合。
+/// フラグパース時に発生するエラーの集合。
 pub const ParseError = error{
     /// 定義されていないフラグが指定された。
     UnknownFlag,
@@ -41,12 +43,13 @@ pub const ParseError = error{
     OutOfMemory,
 };
 
-/// フラグパーサー。`--long`、`-s`、`--key=val`、`--` に対応。
+/// フラグパーサー。
+/// `--long`、`-s`、`--key=val`、`--` 形式に対応しています。
 pub const FlagSet = struct {
     allocator: std.mem.Allocator,
     defs: []const FlagDef,
     values: std.StringHashMapUnmanaged(FlagValue),
-    /// 内部フィールド。直接アクセスせず positionals() メソッドを使うこと。
+    /// 内部フィールド。直接アクセスせず `positionals()` メソッドを使用してください。
     positionals_buf: std.ArrayListUnmanaged([]const u8),
 
     /// `defs` を受け取り `FlagSet` を初期化する。
@@ -153,7 +156,7 @@ pub const FlagSet = struct {
         return self.positionals_buf.items;
     }
 
-    /// 文字列フラグ `name` の値を返す。未定義または型不一致の場合は `null`。
+    /// 文字列フラグ `name` の値を返す。未定義または型不一致の場合は `null` を返す。
     pub fn getString(self: *const FlagSet, name: []const u8) ?[]const u8 {
         const val = self.values.get(name) orelse return null;
         return switch (val) {
@@ -162,7 +165,7 @@ pub const FlagSet = struct {
         };
     }
 
-    /// 真偽値フラグ `name` の値を返す。未定義または型不一致の場合は `null`。
+    /// 真偽値フラグ `name` の値を返す。未定義または型不一致の場合は `null` を返す。
     pub fn getBool(self: *const FlagSet, name: []const u8) ?bool {
         const val = self.values.get(name) orelse return null;
         return switch (val) {
@@ -171,7 +174,7 @@ pub const FlagSet = struct {
         };
     }
 
-    /// 整数フラグ `name` の値を返す。未定義または型不一致の場合は `null`。
+    /// 整数フラグ `name` の値を返す。未定義または型不一致の場合は `null` を返す。
     pub fn getInt(self: *const FlagSet, name: []const u8) ?i64 {
         const val = self.values.get(name) orelse return null;
         return switch (val) {

@@ -1,8 +1,8 @@
 const std = @import("std");
 
 /// 実行環境の依存性注入コンテナ。stdout/stderr/allocator を保持するが所有はしない。
-/// stdout/stderr は呼び出し元が生成した `*std.Io.Writer` を渡すこと。
-/// Commander より先に宣言した writer が Commander の寿命を包むこと。
+/// stdout/stderr は呼び出し元が生成した `*std.Io.Writer` を渡してください。
+/// Commander より先に宣言した writer が Commander の寿命を包むようにしてください。
 pub const Env = struct {
     /// メモリアロケータ。所有権は持たない。
     allocator: std.mem.Allocator,
@@ -12,7 +12,8 @@ pub const Env = struct {
     stderr: *std.Io.Writer,
 };
 
-/// テスト用ヘルパー。stdout/stderr を `Allocating` writer に向けた `Env` を提供する。
+/// テスト用ヘルパー。
+/// stdout/stderr を `Allocating` writer に向けた `Env` を提供する。
 pub const TestEnv = struct {
     allocator: std.mem.Allocator,
     out_w: std.Io.Writer.Allocating,

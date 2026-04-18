@@ -2,11 +2,11 @@ const std = @import("std");
 
 /// プロセス終了コードを表す列挙型。
 pub const ExitStatus = enum(u8) {
-    /// 終了コード 0: 正常終了。
+    /// 正常終了を示す（終了コード: 0）。
     success = 0,
-    /// 終了コード 1: 処理失敗。
+    /// 処理失敗を示す（終了コード: 1）。
     failure = 1,
-    /// 終了コード 2: 使い方の誤り（不正フラグ等）。
+    /// 使い方の誤りを示す（終了コード: 2）。不正なフラグ指定などが該当する。
     usage_error = 2,
 
     /// 対応する `u8` 終了コードを返す。
@@ -14,8 +14,8 @@ pub const ExitStatus = enum(u8) {
         return @intFromEnum(self);
     }
 
-    /// `std.process.exit()` を呼びプロセスを終了する。
-    /// `defer` をスキップするため、呼び出し前に writer を明示的にフラッシュすること。
+    /// `std.process.exit()` を呼び出してプロセスを終了する。
+    /// `defer` をスキップするため、呼び出し前に writer を明示的にフラッシュしてください。
     pub fn exit(self: ExitStatus) noreturn {
         std.process.exit(self.toCode());
     }
