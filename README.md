@@ -115,13 +115,13 @@ pub fn main(env: std.process.Init) !void {
     try cmdr.register(zcli.Command.from(GreetCommand, &greet));
 
     const status = cmdr.run(args) catch |err| blk: {
-        std.debug.print("error: {s}\n", .{@errorName(err)});
+        try stderr_w.interface.print("error: {s}\n", .{@errorName(err)});
         break :blk zcli.ExitStatus.failure;
     };
 
     // std.process.exit は defer をスキップするため、exit 前に明示的にフラッシュする。
-    stdout_w.interface.flush() catch {};
-    stderr_w.interface.flush() catch {};
+    stdout_w.interface.flush() catch |err| std.debug.print("stdout flush error: {s}\n", .{@errorName(err)});
+    stderr_w.interface.flush() catch |err| std.debug.print("stderr flush error: {s}\n", .{@errorName(err)});
     status.exit();
 }
 ```
