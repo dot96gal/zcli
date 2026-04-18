@@ -2,6 +2,8 @@
 
 シンプルな Zig 製 CLI フレームワーク。
 
+[API ドキュメント](https://dot96gal.github.io/zcli/)
+
 ## 動作要件
 
 - Zig 0.16.x
