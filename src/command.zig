@@ -140,7 +140,7 @@ test "Command.from run" {
 
     const status = try cmd.run(&.{}, &e);
     try testing.expectEqual(ExitStatus.success, status);
-    try testing.expectEqualStrings("mock ran\n", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("mock ran\n", te.outWriter.writer.buffered());
 }
 
 test "Command.from run returns failure" {
@@ -164,5 +164,5 @@ test "Command.from usage" {
     const e = te.env();
 
     try cmd.usage(e.stdout);
-    try testing.expectEqualStrings("usage: mock\n", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("usage: mock\n", te.outWriter.writer.buffered());
 }

@@ -18,7 +18,7 @@ pub const FlagDef = struct {
     /// ショートフラグ文字（`-n` の `n`）。不要な場合は `null` を指定する。
     short: ?u8,
     /// フラグの型とデフォルト値を指定する。
-    flag_type: FlagType,
+    flagType: FlagType,
     /// ヘルプテキストに表示する説明文を指定する。
     description: []const u8,
 };
@@ -50,7 +50,7 @@ pub const FlagSet = struct {
     defs: []const FlagDef,
     values: std.StringHashMapUnmanaged(FlagValue),
     /// 内部フィールド。直接アクセスせず `positionals()` メソッドを使用してください。
-    positionals_buf: std.ArrayListUnmanaged([]const u8),
+    positionalsBuf: std.ArrayListUnmanaged([]const u8),
 
     /// `defs` を受け取り `FlagSet` を初期化する。
     pub fn init(allocator: std.mem.Allocator, comptime defs: []const FlagDef) FlagSet {
@@ -58,7 +58,7 @@ pub const FlagSet = struct {
             .allocator = allocator,
             .defs = defs,
             .values = .{},
-            .positionals_buf = .empty,
+            .positionalsBuf = .empty,
         };
     }
 
@@ -73,10 +73,10 @@ pub const FlagSet = struct {
             }
         }
         self.values.deinit(self.allocator);
-        for (self.positionals_buf.items) |p| {
+        for (self.positionalsBuf.items) |p| {
             self.allocator.free(p);
         }
-        self.positionals_buf.deinit(self.allocator);
+        self.positionalsBuf.deinit(self.allocator);
     }
 
     /// `args` を解析してフラグと位置引数を取り込む。エラー時は `ParseError` を返す。
@@ -89,7 +89,7 @@ pub const FlagSet = struct {
                 i += 1;
                 while (i < args.len) : (i += 1) {
                     const duped = try self.allocator.dupe(u8, args[i]);
-                    try self.positionals_buf.append(self.allocator, duped);
+                    try self.positionalsBuf.append(self.allocator, duped);
                 }
                 break;
             }
@@ -103,7 +103,7 @@ pub const FlagSet = struct {
                     try self.store(def, key, val);
                 } else {
                     const def = self.findLong(body) orelse return ParseError.UnknownFlag;
-                    switch (def.flag_type) {
+                    switch (def.flagType) {
                         .bool => try self.storeBool(body, true),
                         else => {
                             if (i + 1 >= args.len) return ParseError.MissingValue;
@@ -113,13 +113,13 @@ pub const FlagSet = struct {
                     }
                 }
             } else if (arg.len == 2 and arg[0] == '-') {
-                const short_char = arg[1];
-                if (short_char >= '0' and short_char <= '9') {
+                const shortChar = arg[1];
+                if (shortChar >= '0' and shortChar <= '9') {
                     const duped = try self.allocator.dupe(u8, arg);
-                    try self.positionals_buf.append(self.allocator, duped);
+                    try self.positionalsBuf.append(self.allocator, duped);
                 } else {
-                    const def = self.findShort(short_char) orelse return ParseError.UnknownFlag;
-                    switch (def.flag_type) {
+                    const def = self.findShort(shortChar) orelse return ParseError.UnknownFlag;
+                    switch (def.flagType) {
                         .bool => try self.storeBool(def.long, true),
                         else => {
                             if (i + 1 >= args.len) return ParseError.MissingValue;
@@ -130,7 +130,7 @@ pub const FlagSet = struct {
                 }
             } else {
                 const duped = try self.allocator.dupe(u8, arg);
-                try self.positionals_buf.append(self.allocator, duped);
+                try self.positionalsBuf.append(self.allocator, duped);
             }
         }
 
@@ -138,7 +138,7 @@ pub const FlagSet = struct {
         for (self.defs) |def| {
             if (!self.values.contains(def.long)) {
                 const key = try self.allocator.dupe(u8, def.long);
-                const val: FlagValue = switch (def.flag_type) {
+                const val: FlagValue = switch (def.flagType) {
                     .string => |s| blk: {
                         const duped = try self.allocator.dupe(u8, s.default);
                         break :blk .{ .string = duped };
@@ -153,7 +153,7 @@ pub const FlagSet = struct {
 
     /// フラグ以外の位置引数の一覧を返す。
     pub fn positionals(self: *const FlagSet) []const []const u8 {
-        return self.positionals_buf.items;
+        return self.positionalsBuf.items;
     }
 
     /// 文字列フラグ `name` の値を返す。未定義または型不一致の場合は `null` を返す。
@@ -200,7 +200,7 @@ pub const FlagSet = struct {
     }
 
     fn store(self: *FlagSet, def: FlagDef, key: []const u8, raw: []const u8) ParseError!void {
-        const val: FlagValue = switch (def.flag_type) {
+        const val: FlagValue = switch (def.flagType) {
             .string => .{ .string = try self.allocator.dupe(u8, raw) },
             .bool => .{ .bool = true },
             .int => blk: {
@@ -234,9 +234,9 @@ pub const FlagSet = struct {
 const testing = std.testing;
 
 const TEST_DEFS = [_]FlagDef{
-    .{ .long = "name", .short = 'n', .flag_type = .{ .string = .{ .default = "World" } }, .description = "Name" },
-    .{ .long = "count", .short = 'c', .flag_type = .{ .int = .{ .default = 1 } }, .description = "Count" },
-    .{ .long = "verbose", .short = 'v', .flag_type = .{ .bool = .{ .default = false } }, .description = "Verbose" },
+    .{ .long = "name", .short = 'n', .flagType = .{ .string = .{ .default = "World" } }, .description = "Name" },
+    .{ .long = "count", .short = 'c', .flagType = .{ .int = .{ .default = 1 } }, .description = "Count" },
+    .{ .long = "verbose", .short = 'v', .flagType = .{ .bool = .{ .default = false } }, .description = "Verbose" },
 };
 
 test "FlagSet defaults" {

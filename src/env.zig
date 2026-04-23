@@ -16,15 +16,15 @@ pub const Env = struct {
 /// stdout/stderr を `Allocating` writer に向けた `Env` を提供する。
 pub const TestEnv = struct {
     allocator: std.mem.Allocator,
-    out_w: std.Io.Writer.Allocating,
-    err_w: std.Io.Writer.Allocating,
+    outWriter: std.Io.Writer.Allocating,
+    errWriter: std.Io.Writer.Allocating,
 
     /// `allocator` を受け取り `TestEnv` を初期化する。
     pub fn init(allocator: std.mem.Allocator) TestEnv {
         return .{
             .allocator = allocator,
-            .out_w = std.Io.Writer.Allocating.init(allocator),
-            .err_w = std.Io.Writer.Allocating.init(allocator),
+            .outWriter = std.Io.Writer.Allocating.init(allocator),
+            .errWriter = std.Io.Writer.Allocating.init(allocator),
         };
     }
 
@@ -33,15 +33,15 @@ pub const TestEnv = struct {
     pub fn env(self: *TestEnv) Env {
         return .{
             .allocator = self.allocator,
-            .stdout = &self.out_w.writer,
-            .stderr = &self.err_w.writer,
+            .stdout = &self.outWriter.writer,
+            .stderr = &self.errWriter.writer,
         };
     }
 
     /// stdout/stderr の `Allocating` writer を解放する。
     pub fn deinit(self: *TestEnv) void {
-        self.out_w.deinit();
-        self.err_w.deinit();
+        self.outWriter.deinit();
+        self.errWriter.deinit();
     }
 };
 
@@ -51,7 +51,7 @@ test "TestEnv captures stdout" {
 
     const e = te.env();
     try e.stdout.print("hello {s}\n", .{"world"});
-    try std.testing.expectEqualStrings("hello world\n", te.out_w.writer.buffered());
+    try std.testing.expectEqualStrings("hello world\n", te.outWriter.writer.buffered());
 }
 
 test "TestEnv captures stderr" {
@@ -60,5 +60,5 @@ test "TestEnv captures stderr" {
 
     const e = te.env();
     try e.stderr.print("error: {s}\n", .{"oops"});
-    try std.testing.expectEqualStrings("error: oops\n", te.err_w.writer.buffered());
+    try std.testing.expectEqualStrings("error: oops\n", te.errWriter.writer.buffered());
 }

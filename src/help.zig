@@ -8,14 +8,14 @@ const DESC_INDENT = "        ";
 /// フラグ一覧のヘルプテキストを w に出力する。
 pub fn printFlagHelp(w: *std.Io.Writer, comptime defs: []const FlagDef) !void {
     inline for (defs) |def| {
-        const default_str: []const u8 = switch (def.flag_type) {
+        const defaultStr: []const u8 = switch (def.flagType) {
             .string => |s| s.default,
             .bool => |b| if (b.default) "true" else "false",
             .int => |i| comptime std.fmt.comptimePrint("{d}", .{i.default}),
         };
         try w.print(ITEM_INDENT ++ "--{s}", .{def.long});
         if (def.short) |sh| try w.print(", -{c}", .{sh});
-        try w.print("\n" ++ DESC_INDENT ++ "{s} (default: {s})\n", .{ def.description, default_str });
+        try w.print("\n" ++ DESC_INDENT ++ "{s} (default: {s})\n", .{ def.description, defaultStr });
     }
 }
 
@@ -46,9 +46,9 @@ const MockGreetCmd = struct {
 };
 
 const TEST_DEFS = [_]FlagDef{
-    .{ .long = "name", .short = 'n', .flag_type = .{ .string = .{ .default = "World" } }, .description = "Name to greet" },
-    .{ .long = "count", .short = 'c', .flag_type = .{ .int = .{ .default = 1 } }, .description = "Times" },
-    .{ .long = "verbose", .short = null, .flag_type = .{ .bool = .{ .default = false } }, .description = "Verbose" },
+    .{ .long = "name", .short = 'n', .flagType = .{ .string = .{ .default = "World" } }, .description = "Name to greet" },
+    .{ .long = "count", .short = 'c', .flagType = .{ .int = .{ .default = 1 } }, .description = "Times" },
+    .{ .long = "verbose", .short = null, .flagType = .{ .bool = .{ .default = false } }, .description = "Verbose" },
 };
 
 test "printFlagHelp" {
@@ -58,7 +58,7 @@ test "printFlagHelp" {
 
     try printFlagHelp(e.stdout, &TEST_DEFS);
 
-    const out = te.out_w.writer.buffered();
+    const out = te.outWriter.writer.buffered();
     try testing.expect(std.mem.indexOf(u8, out, "--name, -n") != null);
     try testing.expect(std.mem.indexOf(u8, out, "default: World") != null);
     try testing.expect(std.mem.indexOf(u8, out, "--count, -c") != null);
@@ -78,7 +78,7 @@ test "printCommandList outputs name and synopsis" {
 
     try printCommandList(e.stdout, &cmds);
 
-    const out = te.out_w.writer.buffered();
+    const out = te.outWriter.writer.buffered();
     try testing.expect(std.mem.indexOf(u8, out, "greet") != null);
     try testing.expect(std.mem.indexOf(u8, out, "say hello") != null);
 }
@@ -90,7 +90,7 @@ test "printCommandList with empty list outputs nothing" {
 
     try printCommandList(e.stdout, &.{});
 
-    const out = te.out_w.writer.buffered();
+    const out = te.outWriter.writer.buffered();
     try testing.expectEqualStrings("", out);
 }
 
@@ -100,11 +100,11 @@ test "printFlagHelp exact format with short option" {
     const e = te.env();
 
     const defs = [_]FlagDef{
-        .{ .long = "name", .short = 'n', .flag_type = .{ .string = .{ .default = "World" } }, .description = "Name to greet" },
+        .{ .long = "name", .short = 'n', .flagType = .{ .string = .{ .default = "World" } }, .description = "Name to greet" },
     };
     try printFlagHelp(e.stdout, &defs);
 
-    try testing.expectEqualStrings("  --name, -n\n        Name to greet (default: World)\n", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("  --name, -n\n        Name to greet (default: World)\n", te.outWriter.writer.buffered());
 }
 
 test "printFlagHelp exact format without short option" {
@@ -113,11 +113,11 @@ test "printFlagHelp exact format without short option" {
     const e = te.env();
 
     const defs = [_]FlagDef{
-        .{ .long = "verbose", .short = null, .flag_type = .{ .bool = .{ .default = false } }, .description = "Verbose" },
+        .{ .long = "verbose", .short = null, .flagType = .{ .bool = .{ .default = false } }, .description = "Verbose" },
     };
     try printFlagHelp(e.stdout, &defs);
 
-    try testing.expectEqualStrings("  --verbose\n        Verbose (default: false)\n", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("  --verbose\n        Verbose (default: false)\n", te.outWriter.writer.buffered());
 }
 
 test "printFlagHelp with no flags outputs nothing" {
@@ -127,7 +127,7 @@ test "printFlagHelp with no flags outputs nothing" {
 
     try printFlagHelp(e.stdout, &.{});
 
-    try testing.expectEqualStrings("", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("", te.outWriter.writer.buffered());
 }
 
 test "printCommandList exact format" {
@@ -141,5 +141,5 @@ test "printCommandList exact format" {
 
     try printCommandList(e.stdout, &cmds);
 
-    try testing.expectEqualStrings("  greet\n        say hello\n", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("  greet\n        say hello\n", te.outWriter.writer.buffered());
 }

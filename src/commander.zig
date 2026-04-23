@@ -39,24 +39,24 @@ pub const Commander = struct {
 
         if (argv.len == 0) {
             try self.printTopLevelHelp();
-            return .usage_error;
+            return .usageError;
         }
 
-        const subcmd_name = argv[0];
+        const subcmdName = argv[0];
 
-        if (std.mem.eql(u8, subcmd_name, "help")) {
+        if (std.mem.eql(u8, subcmdName, "help")) {
             return self.handleHelp(argv[1..]);
         }
 
         for (self.commands.items) |cmd| {
-            if (std.mem.eql(u8, cmd.name(), subcmd_name)) {
+            if (std.mem.eql(u8, cmd.name(), subcmdName)) {
                 return cmd.run(argv[1..], &self.env);
             }
         }
 
-        try self.env.stderr.print("unknown command: {s}\n\n", .{subcmd_name});
+        try self.env.stderr.print("unknown command: {s}\n\n", .{subcmdName});
         try self.printTopLevelHelp();
-        return .usage_error;
+        return .usageError;
     }
 
     fn printTopLevelHelp(self: *Commander) !void {
@@ -117,7 +117,7 @@ const MockGreetCmd = struct {
     }
 };
 
-test "Commander no subcommand returns usage_error" {
+test "Commander no subcommand returns usageError" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
@@ -126,7 +126,7 @@ test "Commander no subcommand returns usage_error" {
     defer cmdr.deinit();
 
     const status = try cmdr.run(&.{"mytool"});
-    try testing.expectEqual(ExitStatus.usage_error, status);
+    try testing.expectEqual(ExitStatus.usageError, status);
 }
 
 test "Commander runs registered command" {
@@ -142,10 +142,10 @@ test "Commander runs registered command" {
 
     const status = try cmdr.run(&.{ "mytool", "greet" });
     try testing.expectEqual(ExitStatus.success, status);
-    try testing.expectEqualStrings("Hello!\n", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("Hello!\n", te.outWriter.writer.buffered());
 }
 
-test "Commander unknown command returns usage_error" {
+test "Commander unknown command returns usageError" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
@@ -154,8 +154,8 @@ test "Commander unknown command returns usage_error" {
     defer cmdr.deinit();
 
     const status = try cmdr.run(&.{ "mytool", "unknown" });
-    try testing.expectEqual(ExitStatus.usage_error, status);
-    try testing.expect(std.mem.indexOf(u8, te.err_w.writer.buffered(), "unknown command: unknown") != null);
+    try testing.expectEqual(ExitStatus.usageError, status);
+    try testing.expect(std.mem.indexOf(u8, te.errWriter.writer.buffered(), "unknown command: unknown") != null);
 }
 
 test "Commander help with no arg prints top-level" {
@@ -171,7 +171,7 @@ test "Commander help with no arg prints top-level" {
 
     const status = try cmdr.run(&.{ "mytool", "help" });
     try testing.expectEqual(ExitStatus.success, status);
-    try testing.expect(std.mem.indexOf(u8, te.out_w.writer.buffered(), "greet") != null);
+    try testing.expect(std.mem.indexOf(u8, te.outWriter.writer.buffered(), "greet") != null);
 }
 
 test "Commander help <cmd> prints command usage" {
@@ -187,7 +187,7 @@ test "Commander help <cmd> prints command usage" {
 
     const status = try cmdr.run(&.{ "mytool", "help", "greet" });
     try testing.expectEqual(ExitStatus.success, status);
-    try testing.expectEqualStrings("usage: greet\n", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("usage: greet\n", te.outWriter.writer.buffered());
 }
 
 test "Commander help <unknown> returns failure" {
@@ -217,7 +217,7 @@ test "Commander dispatches to correct command among multiple" {
 
     const status = try cmdr.run(&.{ "mytool", "greet" });
     try testing.expectEqual(ExitStatus.success, status);
-    try testing.expectEqualStrings("Hello!\n", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("Hello!\n", te.outWriter.writer.buffered());
 }
 
 test "Commander run with empty args slice" {
@@ -229,7 +229,7 @@ test "Commander run with empty args slice" {
     defer cmdr.deinit();
 
     const status = try cmdr.run(&.{});
-    try testing.expectEqual(ExitStatus.usage_error, status);
+    try testing.expectEqual(ExitStatus.usageError, status);
 }
 
 test "Commander propagates command failure status" {
@@ -293,7 +293,7 @@ test "Commander top-level help exact format" {
 
     const status = try cmdr.run(&.{ "mytool", "help" });
     try testing.expectEqual(ExitStatus.success, status);
-    try testing.expectEqualStrings("mytool: A test tool\n\nCommands:\n  greet\n        say hello\n", te.out_w.writer.buffered());
+    try testing.expectEqualStrings("mytool: A test tool\n\nCommands:\n  greet\n        say hello\n", te.outWriter.writer.buffered());
 }
 
 test "Commander unknown command writes to stderr" {
@@ -305,5 +305,5 @@ test "Commander unknown command writes to stderr" {
     defer cmdr.deinit();
 
     _ = try cmdr.run(&.{ "mytool", "unknown" });
-    try testing.expectEqualStrings("unknown command: unknown\n\n", te.err_w.writer.buffered());
+    try testing.expectEqualStrings("unknown command: unknown\n\n", te.errWriter.writer.buffered());
 }

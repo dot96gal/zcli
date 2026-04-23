@@ -5,19 +5,19 @@ const GREET_FLAGS = [_]zcli.FlagDef{
     .{
         .long = "name",
         .short = 'n',
-        .flag_type = .{ .string = .{ .default = "World" } },
+        .flagType = .{ .string = .{ .default = "World" } },
         .description = "Name to greet",
     },
     .{
         .long = "count",
         .short = 'c',
-        .flag_type = .{ .int = .{ .default = 1 } },
+        .flagType = .{ .int = .{ .default = 1 } },
         .description = "Number of times to greet",
     },
     .{
         .long = "excited",
         .short = 'e',
-        .flag_type = .{ .bool = .{ .default = false } },
+        .flagType = .{ .bool = .{ .default = false } },
         .description = "Use exclamation mark",
     },
 };
@@ -41,7 +41,7 @@ pub const GreetCommand = struct {
 
         fs.parse(args) catch |err| {
             try env.stderr.print("flag error: {s}\n", .{@errorName(err)});
-            return .usage_error;
+            return .usageError;
         };
 
         const target = fs.getString("name") orelse "World";
