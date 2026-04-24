@@ -2,7 +2,7 @@ const std = @import("std");
 const Env = @import("env.zig").Env;
 const ExitStatus = @import("exit_status.zig").ExitStatus;
 
-/// vtable ベースのサブコマンドインターフェース。
+/// vtable ベースのコマンドインターフェース。
 /// `Command.from(T, ptr)` で任意の型から生成する。
 pub const Command = struct {
     ptr: *anyopaque,

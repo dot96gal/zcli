@@ -4,37 +4,37 @@ const Env = @import("env.zig").Env;
 const ExitStatus = @import("exit_status.zig").ExitStatus;
 const help = @import("help.zig");
 
-/// サブコマンドのルーティングと組み込み `help` コマンドの処理を担うルーター。
-pub const Commander = struct {
+/// コマンドを登録し、引数に応じてディスパッチする CLI アプリケーション。
+pub const App = struct {
     env: Env,
-    program: []const u8,
+    name: []const u8,
     description: []const u8,
     commands: std.ArrayListUnmanaged(Command),
 
-    /// `env`、プログラム名、説明文を受け取り `Commander` を初期化する。
-    pub fn init(env: Env, program: []const u8, description: []const u8) Commander {
+    /// `env`、アプリケーション名、説明文を受け取り `App` を初期化する。
+    pub fn init(env: Env, name: []const u8, description: []const u8) App {
         return .{
             .env = env,
-            .program = program,
+            .name = name,
             .description = description,
             .commands = .empty,
         };
     }
 
     /// 登録済みコマンドリストを解放する。
-    pub fn deinit(self: *Commander) void {
+    pub fn deinit(self: *App) void {
         self.commands.deinit(self.env.allocator);
     }
 
-    /// サブコマンドを登録する。
-    /// コマンドインスタンスの寿命は Commander より長くなければならない。
-    /// Commander はポインタを保持するが所有権は持たない。
-    pub fn register(self: *Commander, cmd: Command) !void {
+    /// コマンドを登録する。
+    /// コマンドインスタンスの寿命は App より長くなければならない。
+    /// App はポインタを保持するが所有権は持たない。
+    pub fn register(self: *App, cmd: Command) !void {
         try self.commands.append(self.env.allocator, cmd);
     }
 
-    /// `args`（`argv[0]` 含む全引数）を受け取り、サブコマンドへディスパッチする。
-    pub fn run(self: *Commander, args: []const []const u8) !ExitStatus {
+    /// `args`（`argv[0]` 含む全引数）を受け取り、コマンドへディスパッチする。
+    pub fn run(self: *App, args: []const []const u8) !ExitStatus {
         const argv = if (args.len > 0) args[1..] else args;
 
         if (argv.len == 0) {
@@ -42,29 +42,29 @@ pub const Commander = struct {
             return .usageError;
         }
 
-        const subcmdName = argv[0];
+        const cmdName = argv[0];
 
-        if (std.mem.eql(u8, subcmdName, "help")) {
+        if (std.mem.eql(u8, cmdName, "help")) {
             return self.handleHelp(argv[1..]);
         }
 
         for (self.commands.items) |cmd| {
-            if (std.mem.eql(u8, cmd.name(), subcmdName)) {
+            if (std.mem.eql(u8, cmd.name(), cmdName)) {
                 return cmd.run(argv[1..], &self.env);
             }
         }
 
-        try self.env.stderr.print("unknown command: {s}\n\n", .{subcmdName});
+        try self.env.stderr.print("unknown command: {s}\n\n", .{cmdName});
         try self.printTopLevelHelp();
         return .usageError;
     }
 
-    fn printTopLevelHelp(self: *Commander) !void {
-        try self.env.stdout.print("{s}: {s}\n\nCommands:\n", .{ self.program, self.description });
+    fn printTopLevelHelp(self: *App) !void {
+        try self.env.stdout.print("{s}: {s}\n\nCommands:\n", .{ self.name, self.description });
         try help.printCommandList(self.env.stdout, self.commands.items);
     }
 
-    fn handleHelp(self: *Commander, argv: []const []const u8) !ExitStatus {
+    fn handleHelp(self: *App, argv: []const []const u8) !ExitStatus {
         if (argv.len == 0) {
             try self.printTopLevelHelp();
             return .success;
@@ -117,133 +117,133 @@ const MockGreetCmd = struct {
     }
 };
 
-test "Commander no subcommand returns usageError" {
+test "App no command returns usageError" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
-    const status = try cmdr.run(&.{"mytool"});
+    const status = try app.run(&.{"mytool"});
     try testing.expectEqual(ExitStatus.usageError, status);
 }
 
-test "Commander runs registered command" {
+test "App runs registered command" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
     var mc = MockGreetCmd{};
-    try cmdr.register(Command.from(MockGreetCmd, &mc));
+    try app.register(Command.from(MockGreetCmd, &mc));
 
-    const status = try cmdr.run(&.{ "mytool", "greet" });
+    const status = try app.run(&.{ "mytool", "greet" });
     try testing.expectEqual(ExitStatus.success, status);
     try testing.expectEqualStrings("Hello!\n", te.outWriter.writer.buffered());
 }
 
-test "Commander unknown command returns usageError" {
+test "App unknown command returns usageError" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
-    const status = try cmdr.run(&.{ "mytool", "unknown" });
+    const status = try app.run(&.{ "mytool", "unknown" });
     try testing.expectEqual(ExitStatus.usageError, status);
     try testing.expect(std.mem.indexOf(u8, te.errWriter.writer.buffered(), "unknown command: unknown") != null);
 }
 
-test "Commander help with no arg prints top-level" {
+test "App help with no arg prints top-level" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
     var mc = MockGreetCmd{};
-    try cmdr.register(Command.from(MockGreetCmd, &mc));
+    try app.register(Command.from(MockGreetCmd, &mc));
 
-    const status = try cmdr.run(&.{ "mytool", "help" });
+    const status = try app.run(&.{ "mytool", "help" });
     try testing.expectEqual(ExitStatus.success, status);
     try testing.expect(std.mem.indexOf(u8, te.outWriter.writer.buffered(), "greet") != null);
 }
 
-test "Commander help <cmd> prints command usage" {
+test "App help <cmd> prints command usage" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
     var mc = MockGreetCmd{};
-    try cmdr.register(Command.from(MockGreetCmd, &mc));
+    try app.register(Command.from(MockGreetCmd, &mc));
 
-    const status = try cmdr.run(&.{ "mytool", "help", "greet" });
+    const status = try app.run(&.{ "mytool", "help", "greet" });
     try testing.expectEqual(ExitStatus.success, status);
     try testing.expectEqualStrings("usage: greet\n", te.outWriter.writer.buffered());
 }
 
-test "Commander help <unknown> returns failure" {
+test "App help <unknown> returns failure" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
-    const status = try cmdr.run(&.{ "mytool", "help", "nope" });
+    const status = try app.run(&.{ "mytool", "help", "nope" });
     try testing.expectEqual(ExitStatus.failure, status);
 }
 
-test "Commander dispatches to correct command among multiple" {
+test "App dispatches to correct command among multiple" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
     var mc = MockGreetCmd{};
     var mc2 = MockBuildCmd{};
-    try cmdr.register(Command.from(MockGreetCmd, &mc));
-    try cmdr.register(Command.from(MockBuildCmd, &mc2));
+    try app.register(Command.from(MockGreetCmd, &mc));
+    try app.register(Command.from(MockBuildCmd, &mc2));
 
-    const status = try cmdr.run(&.{ "mytool", "greet" });
+    const status = try app.run(&.{ "mytool", "greet" });
     try testing.expectEqual(ExitStatus.success, status);
     try testing.expectEqualStrings("Hello!\n", te.outWriter.writer.buffered());
 }
 
-test "Commander run with empty args slice" {
+test "App run with empty args slice" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
-    const status = try cmdr.run(&.{});
+    const status = try app.run(&.{});
     try testing.expectEqual(ExitStatus.usageError, status);
 }
 
-test "Commander propagates command failure status" {
+test "App propagates command failure status" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
     var mc2 = MockBuildCmd{};
-    try cmdr.register(Command.from(MockBuildCmd, &mc2));
+    try app.register(Command.from(MockBuildCmd, &mc2));
 
-    const status = try cmdr.run(&.{ "mytool", "build" });
+    const status = try app.run(&.{ "mytool", "build" });
     try testing.expectEqual(ExitStatus.failure, status);
 }
 
@@ -263,47 +263,47 @@ const MockArgCapture = struct {
     }
 };
 
-test "Commander passes args to subcommand" {
+test "App passes args to command" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
     var mc = MockArgCapture{};
-    try cmdr.register(Command.from(MockArgCapture, &mc));
+    try app.register(Command.from(MockArgCapture, &mc));
 
-    _ = try cmdr.run(&.{ "mytool", "capture", "foo", "bar" });
+    _ = try app.run(&.{ "mytool", "capture", "foo", "bar" });
     try testing.expectEqual(@as(usize, 2), mc.captured.len);
     try testing.expectEqualStrings("foo", mc.captured[0]);
     try testing.expectEqualStrings("bar", mc.captured[1]);
 }
 
-test "Commander top-level help exact format" {
+test "App top-level help exact format" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
     var mc = MockGreetCmd{};
-    try cmdr.register(Command.from(MockGreetCmd, &mc));
+    try app.register(Command.from(MockGreetCmd, &mc));
 
-    const status = try cmdr.run(&.{ "mytool", "help" });
+    const status = try app.run(&.{ "mytool", "help" });
     try testing.expectEqual(ExitStatus.success, status);
     try testing.expectEqualStrings("mytool: A test tool\n\nCommands:\n  greet\n        say hello\n", te.outWriter.writer.buffered());
 }
 
-test "Commander unknown command writes to stderr" {
+test "App unknown command writes to stderr" {
     var te = TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 
-    var cmdr = Commander.init(e, "mytool", "A test tool");
-    defer cmdr.deinit();
+    var app = App.init(e, "mytool", "A test tool");
+    defer app.deinit();
 
-    _ = try cmdr.run(&.{ "mytool", "unknown" });
+    _ = try app.run(&.{ "mytool", "unknown" });
     try testing.expectEqualStrings("unknown command: unknown\n\n", te.errWriter.writer.buffered());
 }

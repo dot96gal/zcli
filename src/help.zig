@@ -1,6 +1,6 @@
 const std = @import("std");
-const FlagDef = @import("flag_set.zig").FlagDef;
 const Command = @import("command.zig").Command;
+const FlagDef = @import("flag_set.zig").FlagDef;
 
 const ITEM_INDENT = "  ";
 const DESC_INDENT = "        ";
@@ -27,10 +27,10 @@ pub fn printCommandList(w: *std.Io.Writer, commands: []const Command) !void {
 }
 
 const testing = std.testing;
-const TestEnv = @import("env.zig").TestEnv;
-const FlagType = @import("flag_set.zig").FlagType;
 const Env = @import("env.zig").Env;
+const TestEnv = @import("env.zig").TestEnv;
 const ExitStatus = @import("exit_status.zig").ExitStatus;
+const FlagType = @import("flag_set.zig").FlagType;
 
 const MockGreetCmd = struct {
     pub fn name() []const u8 {
