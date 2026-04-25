@@ -138,15 +138,20 @@ pub const FlagSet = struct {
         for (self.defs) |def| {
             if (!self.values.contains(def.long)) {
                 const key = try self.allocator.dupe(u8, def.long);
+                errdefer self.allocator.free(key);
+                var duped_string: ?[]u8 = null;
+                errdefer if (duped_string) |s| self.allocator.free(s);
                 const val: FlagValue = switch (def.flagType) {
                     .string => |s| blk: {
                         const duped = try self.allocator.dupe(u8, s.default);
+                        duped_string = duped;
                         break :blk .{ .string = duped };
                     },
                     .bool => |b| .{ .bool = b.default },
                     .int => |n| .{ .int = n.default },
                 };
                 try self.values.put(self.allocator, key, val);
+                duped_string = null;
             }
         }
     }
@@ -200,16 +205,16 @@ pub const FlagSet = struct {
     }
 
     fn store(self: *FlagSet, def: FlagDef, key: []const u8, raw: []const u8) ParseError!void {
-        const val: FlagValue = switch (def.flagType) {
-            .string => .{ .string = try self.allocator.dupe(u8, raw) },
-            .bool => .{ .bool = true },
-            .int => blk: {
-                const n = std.fmt.parseInt(i64, raw, 10) catch return ParseError.InvalidIntValue;
-                break :blk .{ .int = n };
-            },
-        };
         // 後勝ち: 既存キーを置き換える場合は古い値を解放
         if (self.values.getEntry(key)) |entry| {
+            const val: FlagValue = switch (def.flagType) {
+                .string => .{ .string = try self.allocator.dupe(u8, raw) },
+                .bool => .{ .bool = true },
+                .int => blk: {
+                    const n = std.fmt.parseInt(i64, raw, 10) catch return ParseError.InvalidIntValue;
+                    break :blk .{ .int = n };
+                },
+            };
             switch (entry.value_ptr.*) {
                 .string => |s| self.allocator.free(s),
                 else => {},
@@ -217,7 +222,23 @@ pub const FlagSet = struct {
             entry.value_ptr.* = val;
         } else {
             const k = try self.allocator.dupe(u8, key);
+            errdefer self.allocator.free(k);
+            var duped_string: ?[]u8 = null;
+            errdefer if (duped_string) |s| self.allocator.free(s);
+            const val: FlagValue = switch (def.flagType) {
+                .string => v: {
+                    const s = try self.allocator.dupe(u8, raw);
+                    duped_string = s;
+                    break :v .{ .string = s };
+                },
+                .bool => .{ .bool = true },
+                .int => blk: {
+                    const n = std.fmt.parseInt(i64, raw, 10) catch return ParseError.InvalidIntValue;
+                    break :blk .{ .int = n };
+                },
+            };
             try self.values.put(self.allocator, k, val);
+            duped_string = null;
         }
     }
 
@@ -226,6 +247,7 @@ pub const FlagSet = struct {
             entry.value_ptr.* = .{ .bool = val };
         } else {
             const k = try self.allocator.dupe(u8, key);
+            errdefer self.allocator.free(k);
             try self.values.put(self.allocator, k, .{ .bool = val });
         }
     }
@@ -415,4 +437,43 @@ test "FlagSet inline empty value --name=" {
     defer fs.deinit();
     try fs.parse(&.{"--name="});
     try testing.expectEqualStrings("", fs.getString("name").?);
+}
+
+test "FlagSet storeBool no leak on OOM" {
+    var fail_index: usize = 0;
+    while (fail_index < 10) : (fail_index += 1) {
+        var failing = std.testing.FailingAllocator.init(
+            std.testing.allocator,
+            .{ .fail_index = fail_index },
+        );
+        var fs = FlagSet.init(failing.allocator(), &TEST_DEFS);
+        defer fs.deinit();
+        fs.parse(&.{"-v"}) catch {};
+    }
+}
+
+test "FlagSet store string no leak on OOM" {
+    var fail_index: usize = 0;
+    while (fail_index < 10) : (fail_index += 1) {
+        var failing = std.testing.FailingAllocator.init(
+            std.testing.allocator,
+            .{ .fail_index = fail_index },
+        );
+        var fs = FlagSet.init(failing.allocator(), &TEST_DEFS);
+        defer fs.deinit();
+        fs.parse(&.{ "--name", "Alice" }) catch {};
+    }
+}
+
+test "FlagSet parse defaults no leak on OOM" {
+    var fail_index: usize = 0;
+    while (fail_index < 20) : (fail_index += 1) {
+        var failing = std.testing.FailingAllocator.init(
+            std.testing.allocator,
+            .{ .fail_index = fail_index },
+        );
+        var fs = FlagSet.init(failing.allocator(), &TEST_DEFS);
+        defer fs.deinit();
+        fs.parse(&.{}) catch {};
+    }
 }
