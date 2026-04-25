@@ -22,13 +22,14 @@
 
 zcli は CLI アプリケーションを構築するための以下のコンポーネントを提供します。
 
-| 型 | 説明 |
-|----|------|
+| 型・定数 | 説明 |
+|---------|------|
 | `App` | コマンドのルーティングと `help` の処理 |
 | `Command` | コマンドの vtable ベースインターフェース |
 | `FlagSet` | フラグパーサー（`--long`、`-s`、`--key=val`、`--` に対応） |
 | `FlagDef` | フラグ定義（名前、短縮名、型、デフォルト値、説明） |
-| `Env` | 依存性注入コンテナ（allocator、stdout、stderr） |
+| `Env` | 依存性注入コンテナ（allocator、io、stdout、stderr、ctx） |
+| `BACKGROUND` | キャンセルなしのデフォルトコンテキスト（`Env.ctx` に渡す） |
 | `ExitStatus` | 終了コード列挙型（`.success`、`.failure`、`.usageError`） |
 
 ### クイックスタート
@@ -56,12 +57,17 @@ zig fetch --save https://github.com/dot96gal/zcli/archive/refs/tags/<version>.ta
 #### 2. `build.zig` で zcli モジュールをインポートする。
 
 ```zig
-const zcli_dep = b.dependency("zcli", .{
-    .target = target,
-    .optimize = optimize,
-});
+const zcli_dep = b.dependency("zcli", .{ .target = target, .optimize = optimize });
 const zcli_mod = zcli_dep.module("zcli");
+
 exe.root_module.addImport("zcli", zcli_mod);
+```
+
+キャンセルやタイムアウトを使う場合は、zctx も合わせてインポートする。zctx は zcli の依存として同梱されているため `zcli_dep.module("zctx")` で取得できる。
+
+```zig
+const zctx_mod = zcli_dep.module("zctx");
+exe.root_module.addImport("zctx", zctx_mod);
 ```
 
 #### 3. コマンドを定義する
@@ -119,6 +125,7 @@ const zcli = @import("zcli");
 const GreetCommand = @import("greet_command.zig").GreetCommand;
 
 pub fn main(env: std.process.Init) !void {
+    const io = env.io;
     const allocator = env.gpa;
     const raw_args = try env.minimal.args.toSlice(env.arena.allocator());
     const args: []const []const u8 = @ptrCast(raw_args);
@@ -126,14 +133,16 @@ pub fn main(env: std.process.Init) !void {
     // App より先にバッファ付き writer を宣言してライフタイムを包む。
     var stdoutBuf: [4096]u8 = undefined;
     var stderrBuf: [512]u8 = undefined;
-    var stdoutWriter = std.Io.File.stdout().writer(env.io, &stdoutBuf);
-    var stderrWriter = std.Io.File.stderr().writer(env.io, &stderrBuf);
+    var stdoutWriter = std.Io.File.stdout().writer(io, &stdoutBuf);
+    var stderrWriter = std.Io.File.stderr().writer(io, &stderrBuf);
 
     var app = zcli.App.init(
         zcli.Env{
             .allocator = allocator,
+            .io = io,
             .stdout = &stdoutWriter.interface,
             .stderr = &stderrWriter.interface,
+            .ctx = zcli.BACKGROUND,
         },
         "mytool",
         "デモ用 CLI ツール",
@@ -161,7 +170,7 @@ pub fn main(env: std.process.Init) !void {
 
 ```
 mytool help              # トップレベルのコマンド一覧を表示
-mytool help greet        # 'greet' のusageを表示
+mytool help greet        # 'greet' の usage を表示
 ```
 
 ### FlagSet API
@@ -232,35 +241,47 @@ zcli/
 │   ├── exit_status.zig       # ExitStatus 列挙型
 │   └── help.zig              # printFlagHelp、printCommandList
 ├── example/
-│   ├── main.zig              # サンプル CLI エントリポイント
-│   └── greet_command.zig     # サンプルコマンド
+│   ├── basic/
+│   │   ├── main.zig          # サンプル CLI エントリポイント（キャンセルなし）
+│   │   └── greet_command.zig # サンプルコマンド
+│   └── signal/
+│       ├── main.zig          # サンプル CLI エントリポイント（OS シグナルでキャンセル）
+│       └── greet_command.zig # サンプルコマンド（キャンセル確認あり）
 ├── build.zig
+├── build.zig.zon
 └── mise.toml
 ```
 
 ### 開発タスク
 
 ```sh
-mise run build          # zig build --summary all
-mise run test           # zig build test --summary all
-mise run example        # example を実行（引数は -- 以降に渡す）
-mise run release X.Y.Z  # バージョン更新・コミット・タグ・プッシュを一括実行（例: 1.0.0）
-mise run build-docs     # zig build docs --summary all（API ドキュメントを生成）
-mise run serve-docs     # ドキュメントをローカルサーバーで配信する（Ctrl+C で停止）
+mise run build            # zig build --summary all
+mise run test             # zig build test --summary all
+mise run example-basic    # キャンセルなしの example を実行（引数は -- 以降に渡す）
+mise run example-signal   # OS シグナルキャンセルの example を実行（引数は -- 以降に渡す）
+mise run release X.Y.Z    # バージョン更新・コミット・タグ・プッシュを一括実行（例: 1.0.0）
+mise run build-docs       # zig build docs --summary all（API ドキュメントを生成）
+mise run serve-docs       # ドキュメントをローカルサーバーで配信する（Ctrl+C で停止）
 ```
 
-`example` タスクの呼び出し例:
+`example-basic` タスクの呼び出し例:
 
 ```sh
-mise run example
-mise run example -- greet --name Alice --count 3 --excited
-mise run example -- help greet
+mise run example-basic
+mise run example-basic -- greet --name Alice --count 3 --excited
+mise run example-basic -- help greet
+```
+
+`example-signal` タスクの呼び出し例:
+
+```sh
+mise run example-signal -- greet --name Alice --count 10
 ```
 
 ### 設計方針
 
-- **外部依存なし** — `std` のみを使用する。
-- **`Env` による依存性注入** — stdout、stderr、allocator を明示的に渡すことで、プロセス I/O なしにコマンドをテスト可能にする。
+- **依存は標準ライブラリと `zctx` のみ** — Zig 標準ライブラリと [zctx](https://github.com/dot96gal/zctx) のみを使用する。
+- **`Env` による依存性注入** — allocator、io、stdout、stderr、ctx を明示的に渡すことで、プロセス I/O なしにコマンドをテスト可能にする。
 - **コンパイル時 vtable** — `Command.from(T, ptr)` がコンパイル時に vtable を生成し、`comptime validateCommand` でインターフェースを検証する。宣言漏れはコンパイルエラーとして明示される。
 - **アンマネージドコレクション** — `std.ArrayList` はアロケータを内部に持たない形式で使用し、アロケータは呼び出し元から明示的に渡す。
 - **`*std.Io.Writer` はポインタ渡し** — `std.Io.Writer` は内部で `@fieldParentPtr` を使用するため値コピーが不可。`Env` は `*std.Io.Writer` を保持する。バッキング writer 構造体のライフタイムは参照する `Env` や `App` を包まなければならない。

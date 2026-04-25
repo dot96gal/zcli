@@ -9,6 +9,7 @@ pub const FlagSet = @import("flag_set.zig").FlagSet;
 pub const FlagDef = @import("flag_set.zig").FlagDef;
 pub const ParseError = @import("flag_set.zig").ParseError;
 pub const help = @import("help.zig");
+pub const BACKGROUND = @import("zctx").BACKGROUND;
 
 test {
     _ = @import("app.zig");

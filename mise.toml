@@ -19,12 +19,17 @@ description = "test"
 run = "zig build test --summary all"
 
 # 呼び出し例:
-#   mise run example
-#   mise run example -- greet --name Alice --count 3 --excited
-#   mise run example -- help greet
-[tasks.example]
-description = "run example"
-run = "zig build run --summary all -- $@"
+#   mise run example-basic -- greet --name Alice --count 3 --excited
+#   mise run example-basic -- help greet
+[tasks."example-basic"]
+description = "run basic example (no cancellation)"
+run = "zig build run-basic --summary all -- $@"
+
+# 呼び出し例:
+#   mise run example-signal -- greet --name Alice
+[tasks."example-signal"]
+description = "run signal cancel example"
+run = "zig build run-signal --summary all -- $@"
 
 [tasks.release]
 description = "bump version, commit, tag, and push"

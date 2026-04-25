@@ -1,15 +1,20 @@
 const std = @import("std");
+const zctx = @import("zctx");
 
-/// 実行環境の依存性注入コンテナ。stdout/stderr/allocator を保持するが所有はしない。
+/// 実行環境の依存性注入コンテナ。stdout/stderr/allocator/io/ctx を保持するが所有はしない。
 /// stdout/stderr は呼び出し元が生成した `*std.Io.Writer` を渡してください。
 /// App より先に宣言した writer が App の寿命を包むようにしてください。
 pub const Env = struct {
     /// メモリアロケータ。所有権は持たない。
     allocator: std.mem.Allocator,
+    /// Zig ランタイムの実行プリミティブ。zctx 等が要求する。
+    io: std.Io,
     /// 標準出力 writer へのポインタ。
     stdout: *std.Io.Writer,
     /// 標準エラー出力 writer へのポインタ。
     stderr: *std.Io.Writer,
+    /// 実行コンテキスト。キャンセルやタイムアウトの伝搬に使う。不要な場合は `zctx.BACKGROUND` を渡す。
+    ctx: zctx.Context,
 };
 
 /// テスト用ヘルパー。
@@ -33,8 +38,10 @@ pub const TestEnv = struct {
     pub fn env(self: *TestEnv) Env {
         return .{
             .allocator = self.allocator,
+            .io = std.testing.io,
             .stdout = &self.outWriter.writer,
             .stderr = &self.errWriter.writer,
+            .ctx = zctx.BACKGROUND,
         };
     }
 
@@ -61,4 +68,29 @@ test "TestEnv captures stderr" {
     const e = te.env();
     try e.stderr.print("error: {s}\n", .{"oops"});
     try std.testing.expectEqualStrings("error: oops\n", te.errWriter.writer.buffered());
+}
+
+test "TestEnv ctx defaults to not cancelled" {
+    var te = TestEnv.init(std.testing.allocator);
+    defer te.deinit();
+    const e = te.env();
+
+    try std.testing.expect(!e.ctx.done().isFired());
+}
+
+test "TestEnv ctx can be overridden to test cancellation" {
+    var te = TestEnv.init(std.testing.allocator);
+    defer te.deinit();
+
+    var cancelCtx = try zctx.withCancel(std.testing.io, zctx.BACKGROUND, std.testing.allocator);
+    defer cancelCtx.deinit(std.testing.io);
+
+    var e = te.env();
+    e.ctx = cancelCtx.context;
+
+    try std.testing.expect(!e.ctx.done().isFired());
+
+    cancelCtx.cancel(std.testing.io);
+
+    try std.testing.expect(e.ctx.done().isFired());
 }
