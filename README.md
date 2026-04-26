@@ -101,10 +101,10 @@ pub const GreetCommand = struct {
     }
 
     pub fn run(_: *GreetCommand, args: []const []const u8, env: *zcli.Env) !zcli.ExitStatus {
-        var fs = zcli.FlagSet.init(env.allocator, &GREET_FLAGS);
-        defer fs.deinit();
+        var fs = zcli.FlagSet.init(&GREET_FLAGS);
+        defer fs.deinit(env.allocator);
 
-        fs.parse(args) catch |err| {
+        fs.parse(env.allocator, args) catch |err| {
             try env.stderr.print("flag error: {s}\n", .{@errorName(err)});
             return .usageError;
         };
@@ -177,13 +177,13 @@ mytool help greet        # 'greet' の usage を表示
 
 | メソッド | 説明 |
 |---------|------|
-| `init(allocator, comptime defs)` | FlagSet を生成する |
-| `parse(args)` | 引数スライスをパースする。失敗時は `ParseError` を返す |
+| `init(comptime defs)` | FlagSet を生成する |
+| `parse(allocator, args)` | 引数スライスをパースする。失敗時は `ParseError` を返す |
 | `getString(name)` | 文字列フラグの値を取得する |
 | `getInt(name)` | 整数フラグの値を取得する |
 | `getBool(name)` | 真偽値フラグの値を取得する |
 | `positionals()` | フラグ以外の位置引数を取得する |
-| `deinit()` | 所有するメモリをすべて解放する |
+| `deinit(allocator)` | 所有するメモリをすべて解放する |
 
 対応するフラグ構文:
 

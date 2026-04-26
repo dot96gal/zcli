@@ -36,10 +36,10 @@ pub const GreetCommand = struct {
     }
 
     pub fn run(_: *GreetCommand, args: []const []const u8, env: *zcli.Env) !zcli.ExitStatus {
-        var fs = zcli.FlagSet.init(env.allocator, &GREET_FLAGS);
-        defer fs.deinit();
+        var fs = zcli.FlagSet.init(&GREET_FLAGS);
+        defer fs.deinit(env.allocator);
 
-        fs.parse(args) catch |err| {
+        fs.parse(env.allocator, args) catch |err| {
             try env.stderr.print("flag error: {s}\n", .{@errorName(err)});
             return .usageError;
         };
