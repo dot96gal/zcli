@@ -127,8 +127,8 @@ const GreetCommand = @import("greet_command.zig").GreetCommand;
 pub fn main(env: std.process.Init) !void {
     const io = env.io;
     const allocator = env.gpa;
-    const raw_args = try env.minimal.args.toSlice(env.arena.allocator());
-    const args: []const []const u8 = @ptrCast(raw_args);
+    const rawArgs = try env.minimal.args.toSlice(env.arena.allocator());
+    const args: []const []const u8 = @ptrCast(rawArgs);
 
     // App より先にバッファ付き writer を宣言してライフタイムを包む。
     var stdoutBuf: [4096]u8 = undefined;

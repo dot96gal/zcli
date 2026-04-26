@@ -20,8 +20,8 @@ fn signalWatcher(io: std.Io, cancelCtx: *zctx.OwnedContext) void {
 pub fn main(env: std.process.Init) !void {
     const io = env.io;
     const allocator = env.gpa;
-    const raw_args = try env.minimal.args.toSlice(env.arena.allocator());
-    const args: []const []const u8 = @ptrCast(raw_args);
+    const rawArgs = try env.minimal.args.toSlice(env.arena.allocator());
+    const args: []const []const u8 = @ptrCast(rawArgs);
 
     std.posix.sigaction(.INT, &.{
         .handler = .{ .handler = sigHandler },

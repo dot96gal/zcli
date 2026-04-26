@@ -6,7 +6,7 @@ const ITEM_INDENT = "  ";
 const DESC_INDENT = "        ";
 
 /// フラグ一覧のヘルプテキストを w に出力する。
-pub fn printFlagHelp(w: *std.Io.Writer, comptime defs: []const FlagDef) !void {
+pub fn printFlagHelp(w: *std.Io.Writer, comptime defs: []const FlagDef) std.Io.Writer.Error!void {
     inline for (defs) |def| {
         const defaultStr: []const u8 = switch (def.flagType) {
             .string => |s| s.default,
@@ -20,7 +20,7 @@ pub fn printFlagHelp(w: *std.Io.Writer, comptime defs: []const FlagDef) !void {
 }
 
 /// コマンド一覧（name + synopsis）を w に出力する。
-pub fn printCommandList(w: *std.Io.Writer, commands: []const Command) !void {
+pub fn printCommandList(w: *std.Io.Writer, commands: []const Command) std.Io.Writer.Error!void {
     for (commands) |cmd| {
         try w.print(ITEM_INDENT ++ "{s}\n" ++ DESC_INDENT ++ "{s}\n", .{ cmd.name(), cmd.synopsis() });
     }

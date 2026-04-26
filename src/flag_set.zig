@@ -139,19 +139,19 @@ pub const FlagSet = struct {
             if (!self.values.contains(def.long)) {
                 const key = try self.allocator.dupe(u8, def.long);
                 errdefer self.allocator.free(key);
-                var duped_string: ?[]u8 = null;
-                errdefer if (duped_string) |s| self.allocator.free(s);
+                var dupedString: ?[]u8 = null;
+                errdefer if (dupedString) |s| self.allocator.free(s);
                 const val: FlagValue = switch (def.flagType) {
                     .string => |s| blk: {
                         const duped = try self.allocator.dupe(u8, s.default);
-                        duped_string = duped;
+                        dupedString = duped;
                         break :blk .{ .string = duped };
                     },
                     .bool => |b| .{ .bool = b.default },
                     .int => |n| .{ .int = n.default },
                 };
                 try self.values.put(self.allocator, key, val);
-                duped_string = null;
+                dupedString = null;
             }
         }
     }
@@ -223,12 +223,12 @@ pub const FlagSet = struct {
         } else {
             const k = try self.allocator.dupe(u8, key);
             errdefer self.allocator.free(k);
-            var duped_string: ?[]u8 = null;
-            errdefer if (duped_string) |s| self.allocator.free(s);
+            var dupedString: ?[]u8 = null;
+            errdefer if (dupedString) |s| self.allocator.free(s);
             const val: FlagValue = switch (def.flagType) {
                 .string => v: {
                     const s = try self.allocator.dupe(u8, raw);
-                    duped_string = s;
+                    dupedString = s;
                     break :v .{ .string = s };
                 },
                 .bool => .{ .bool = true },
@@ -238,7 +238,7 @@ pub const FlagSet = struct {
                 },
             };
             try self.values.put(self.allocator, k, val);
-            duped_string = null;
+            dupedString = null;
         }
     }
 
@@ -440,11 +440,11 @@ test "FlagSet inline empty value --name=" {
 }
 
 test "FlagSet storeBool no leak on OOM" {
-    var fail_index: usize = 0;
-    while (fail_index < 10) : (fail_index += 1) {
+    var failIndex: usize = 0;
+    while (failIndex < 10) : (failIndex += 1) {
         var failing = std.testing.FailingAllocator.init(
             std.testing.allocator,
-            .{ .fail_index = fail_index },
+            .{ .fail_index = failIndex },
         );
         var fs = FlagSet.init(failing.allocator(), &TEST_DEFS);
         defer fs.deinit();
@@ -453,11 +453,11 @@ test "FlagSet storeBool no leak on OOM" {
 }
 
 test "FlagSet store string no leak on OOM" {
-    var fail_index: usize = 0;
-    while (fail_index < 10) : (fail_index += 1) {
+    var failIndex: usize = 0;
+    while (failIndex < 10) : (failIndex += 1) {
         var failing = std.testing.FailingAllocator.init(
             std.testing.allocator,
-            .{ .fail_index = fail_index },
+            .{ .fail_index = failIndex },
         );
         var fs = FlagSet.init(failing.allocator(), &TEST_DEFS);
         defer fs.deinit();
@@ -466,11 +466,11 @@ test "FlagSet store string no leak on OOM" {
 }
 
 test "FlagSet parse defaults no leak on OOM" {
-    var fail_index: usize = 0;
-    while (fail_index < 20) : (fail_index += 1) {
+    var failIndex: usize = 0;
+    while (failIndex < 20) : (failIndex += 1) {
         var failing = std.testing.FailingAllocator.init(
             std.testing.allocator,
-            .{ .fail_index = fail_index },
+            .{ .fail_index = failIndex },
         );
         var fs = FlagSet.init(failing.allocator(), &TEST_DEFS);
         defer fs.deinit();

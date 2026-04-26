@@ -29,7 +29,7 @@ pub const App = struct {
     /// コマンドを登録する。
     /// コマンドインスタンスの寿命は App より長くなければならない。
     /// App はポインタを保持するが所有権は持たない。
-    pub fn register(self: *App, cmd: Command) !void {
+    pub fn register(self: *App, cmd: Command) error{OutOfMemory}!void {
         try self.commands.append(self.env.allocator, cmd);
     }
 
