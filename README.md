@@ -1,7 +1,7 @@
 # zcli
 
 [![API Docs](https://img.shields.io/badge/API%20Docs-GitHub%20Pages-blue)](https://dot96gal.github.io/zcli/)
-[![test](https://github.com/dot96gal/zcli/actions/workflows/test.yml/badge.svg)](https://github.com/dot96gal/zcli/actions/workflows/test.yml)
+[![ci](https://github.com/dot96gal/zcli/actions/workflows/ci.yml/badge.svg)](https://github.com/dot96gal/zcli/actions/workflows/ci.yml)
 [![release](https://github.com/dot96gal/zcli/actions/workflows/release.yml/badge.svg)](https://github.com/dot96gal/zcli/actions/workflows/release.yml)
 
 シンプルな Zig 製 CLI フレームワーク。
@@ -255,13 +255,16 @@ zcli/
 ### 開発タスク
 
 ```sh
+mise run fmt              # zig fmt src/（コードをフォーマット）
+mise run fmt-check        # zig fmt --check src/（フォーマットを検証）
+mise run lint             # 命名規則チェック（camelCase / PascalCase / SCREAMING_SNAKE_CASE）
 mise run build            # zig build --summary all
 mise run test             # zig build test --summary all
 mise run example-basic    # キャンセルなしの example を実行（引数は -- 以降に渡す）
 mise run example-signal   # OS シグナルキャンセルの example を実行（引数は -- 以降に渡す）
-mise run release X.Y.Z    # バージョン更新・コミット・タグ・プッシュを一括実行（例: 1.0.0）
 mise run build-docs       # zig build docs --summary all（API ドキュメントを生成）
 mise run serve-docs       # ドキュメントをローカルサーバーで配信する（Ctrl+C で停止）
+mise run release X.Y.Z    # バージョン更新・コミット・タグ・プッシュを一括実行（例: 1.0.0）
 ```
 
 `example-basic` タスクの呼び出し例:
