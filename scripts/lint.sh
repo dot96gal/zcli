@@ -5,7 +5,7 @@ while IFS= read -r -d '' f; do
   snake_var=$(grep -nE '^\s*(pub\s+)?(var|const)\s+[a-z][a-zA-Z0-9]*_[a-z]' "$f" 2>/dev/null || true)
   snake_fn=$(grep -nE '^\s*(pub\s+)?fn\s+[a-z][a-zA-Z0-9]*_[a-z]' "$f" 2>/dev/null || true)
   bad_type=$(grep -nE '^\s*(pub\s+)?const\s+[a-z][a-zA-Z0-9]*\s*=\s*(struct|enum|union|opaque)\b' "$f" 2>/dev/null || true)
-  bad_screaming=$(grep -nE '^(pub\s+)?const\s+[a-z][a-zA-Z0-9]+\s*=\s*("[^"]*"|[0-9])' "$f" 2>/dev/null || true)
+  bad_screaming=$(grep -nE '^(pub\s+)?const\s+[a-z][a-zA-Z0-9]*\s*=\s*("[^"]*"|[0-9]+)' "$f" 2>/dev/null || true)
   if [ -n "$snake_var" ] || [ -n "$snake_fn" ] || [ -n "$bad_type" ] || [ -n "$bad_screaming" ]; then
     echo "$f"
     [ -n "$snake_var"     ] && printf "  [camelCase 違反] 変数/const:\n%s\n"               "$snake_var"
