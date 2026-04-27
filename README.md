@@ -192,6 +192,7 @@ mytool help greet        # 'greet' の usage を表示
 --name=Alice      # インライン値付き long フラグ
 -n Alice          # 値付き short フラグ
 --verbose         # bool プレゼンスフラグ
+--verbose=true    # bool フラグをインライン値で指定（true/false/1/0）
 -v                # short bool フラグ
 --                # フラグ終端。以降の引数は位置引数になる
 ```
@@ -206,14 +207,14 @@ mytool help greet        # 'greet' の usage を表示
 
 ### コマンドのテストを書く
 
-`zcli.TestEnv` を使うと、stdout/stderr の出力をユニットテストでキャプチャできます。
+`zcli.Testing.TestEnv` を使うと、stdout/stderr の出力をユニットテストでキャプチャできます。
 
 ```zig
 const testing = std.testing;
 const zcli = @import("zcli");
 
 test "greet が hello を出力する" {
-    var te = zcli.TestEnv.init(testing.allocator);
+    var te = zcli.Testing.TestEnv.init(testing.allocator);
     defer te.deinit();
     const e = te.env();
 

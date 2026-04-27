@@ -39,6 +39,8 @@ pub const ParseError = error{
     MissingValue,
     /// 整数フラグに整数として解釈できない値が渡された。
     InvalidIntValue,
+    /// 真偽値フラグに `true/false/1/0` 以外の値が渡された。
+    InvalidBoolValue,
     /// メモリ確保に失敗した。
     OutOfMemory,
 };
@@ -93,38 +95,14 @@ pub const FlagSet = struct {
             }
 
             if (std.mem.startsWith(u8, arg, "--")) {
-                const body = arg[2..];
-                if (std.mem.indexOf(u8, body, "=")) |eq| {
-                    const key = body[0..eq];
-                    const val = body[eq + 1 ..];
-                    const def = self.findLong(key) orelse return ParseError.UnknownFlag;
-                    try self.store(allocator, def, key, val);
-                } else {
-                    const def = self.findLong(body) orelse return ParseError.UnknownFlag;
-                    switch (def.flagType) {
-                        .bool => try self.storeBool(allocator, body, true),
-                        else => {
-                            if (i + 1 >= args.len) return ParseError.MissingValue;
-                            i += 1;
-                            try self.store(allocator, def, body, args[i]);
-                        },
-                    }
-                }
+                try self.parseLongFlag(allocator, arg[2..], &i, args);
             } else if (arg.len == 2 and arg[0] == '-') {
                 const shortChar = arg[1];
                 if (shortChar >= '0' and shortChar <= '9') {
                     const duped = try allocator.dupe(u8, arg);
                     try self.positionalsBuf.append(allocator, duped);
                 } else {
-                    const def = self.findShort(shortChar) orelse return ParseError.UnknownFlag;
-                    switch (def.flagType) {
-                        .bool => try self.storeBool(allocator, def.long, true),
-                        else => {
-                            if (i + 1 >= args.len) return ParseError.MissingValue;
-                            i += 1;
-                            try self.store(allocator, def, def.long, args[i]);
-                        },
-                    }
+                    try self.parseShortFlag(allocator, shortChar, &i, args);
                 }
             } else {
                 const duped = try allocator.dupe(u8, arg);
@@ -132,26 +110,7 @@ pub const FlagSet = struct {
             }
         }
 
-        // 未設定フラグにデフォルト値を挿入
-        for (self.defs) |def| {
-            if (!self.values.contains(def.long)) {
-                const key = try allocator.dupe(u8, def.long);
-                errdefer allocator.free(key);
-                var dupedString: ?[]u8 = null;
-                errdefer if (dupedString) |s| allocator.free(s);
-                const val: FlagValue = switch (def.flagType) {
-                    .string => |s| blk: {
-                        const duped = try allocator.dupe(u8, s.default);
-                        dupedString = duped;
-                        break :blk .{ .string = duped };
-                    },
-                    .bool => |b| .{ .bool = b.default },
-                    .int => |n| .{ .int = n.default },
-                };
-                try self.values.put(allocator, key, val);
-                dupedString = null;
-            }
-        }
+        try self.applyDefaults(allocator);
     }
 
     /// フラグ以外の位置引数の一覧を返す。
@@ -207,7 +166,7 @@ pub const FlagSet = struct {
         if (self.values.getEntry(key)) |entry| {
             const val: FlagValue = switch (def.flagType) {
                 .string => .{ .string = try allocator.dupe(u8, raw) },
-                .bool => .{ .bool = true },
+                .bool => .{ .bool = try parseBoolValue(raw) },
                 .int => blk: {
                     const n = std.fmt.parseInt(i64, raw, 10) catch return ParseError.InvalidIntValue;
                     break :blk .{ .int = n };
@@ -219,8 +178,6 @@ pub const FlagSet = struct {
             }
             entry.value_ptr.* = val;
         } else {
-            const k = try allocator.dupe(u8, key);
-            errdefer allocator.free(k);
             var dupedString: ?[]u8 = null;
             errdefer if (dupedString) |s| allocator.free(s);
             const val: FlagValue = switch (def.flagType) {
@@ -229,13 +186,13 @@ pub const FlagSet = struct {
                     dupedString = s;
                     break :v .{ .string = s };
                 },
-                .bool => .{ .bool = true },
+                .bool => .{ .bool = try parseBoolValue(raw) },
                 .int => blk: {
                     const n = std.fmt.parseInt(i64, raw, 10) catch return ParseError.InvalidIntValue;
                     break :blk .{ .int = n };
                 },
             };
-            try self.values.put(allocator, k, val);
+            try self.putEntry(allocator, key, val);
             dupedString = null;
         }
     }
@@ -244,9 +201,77 @@ pub const FlagSet = struct {
         if (self.values.getEntry(key)) |entry| {
             entry.value_ptr.* = .{ .bool = val };
         } else {
-            const k = try allocator.dupe(u8, key);
+            try self.putEntry(allocator, key, .{ .bool = val });
+        }
+    }
+
+    fn parseBoolValue(raw: []const u8) ParseError!bool {
+        if (std.mem.eql(u8, raw, "true") or std.mem.eql(u8, raw, "1")) return true;
+        if (std.mem.eql(u8, raw, "false") or std.mem.eql(u8, raw, "0")) return false;
+        return ParseError.InvalidBoolValue;
+    }
+
+    fn putEntry(self: *FlagSet, allocator: std.mem.Allocator, key: []const u8, val: FlagValue) ParseError!void {
+        const k = try allocator.dupe(u8, key);
+        errdefer allocator.free(k);
+        try self.values.put(allocator, k, val);
+    }
+
+    fn parseLongFlag(self: *FlagSet, allocator: std.mem.Allocator, body: []const u8, i: *usize, args: []const []const u8) ParseError!void {
+        if (std.mem.indexOf(u8, body, "=")) |eq| {
+            const key = body[0..eq];
+            const val = body[eq + 1 ..];
+            const def = self.findLong(key) orelse return ParseError.UnknownFlag;
+            try self.store(allocator, def, key, val);
+        } else {
+            const def = self.findLong(body) orelse return ParseError.UnknownFlag;
+            switch (def.flagType) {
+                .bool => try self.storeBool(allocator, body, true),
+                else => {
+                    if (i.* + 1 >= args.len) return ParseError.MissingValue;
+                    i.* += 1;
+                    try self.store(allocator, def, body, args[i.*]);
+                },
+            }
+        }
+    }
+
+    fn parseShortFlag(self: *FlagSet, allocator: std.mem.Allocator, shortChar: u8, i: *usize, args: []const []const u8) ParseError!void {
+        const def = self.findShort(shortChar) orelse return ParseError.UnknownFlag;
+        switch (def.flagType) {
+            .bool => try self.storeBool(allocator, def.long, true),
+            else => {
+                if (i.* + 1 >= args.len) return ParseError.MissingValue;
+                i.* += 1;
+                try self.store(allocator, def, def.long, args[i.*]);
+            },
+        }
+    }
+
+    fn applyDefaults(self: *FlagSet, allocator: std.mem.Allocator) ParseError!void {
+        for (self.defs) |def| {
+            const k = try allocator.dupe(u8, def.long);
             errdefer allocator.free(k);
-            try self.values.put(allocator, k, .{ .bool = val });
+            const gop = try self.values.getOrPut(allocator, k);
+            if (gop.found_existing) {
+                allocator.free(k);
+                continue;
+            }
+            var dupedString: ?[]u8 = null;
+            errdefer {
+                _ = self.values.remove(k);
+                if (dupedString) |s| allocator.free(s);
+            }
+            gop.value_ptr.* = switch (def.flagType) {
+                .string => |s| blk: {
+                    const duped = try allocator.dupe(u8, s.default);
+                    dupedString = duped;
+                    break :blk .{ .string = duped };
+                },
+                .bool => |b| .{ .bool = b.default },
+                .int => |n| .{ .int = n.default },
+            };
+            dupedString = null;
         }
     }
 };
@@ -474,4 +499,38 @@ test "FlagSet parse defaults no leak on OOM" {
         defer fs.deinit(failing.allocator());
         fs.parse(failing.allocator(), &.{}) catch {};
     }
+}
+
+test "FlagSet --verbose=false sets false" {
+    var fs = FlagSet.init(&TEST_DEFS);
+    defer fs.deinit(testing.allocator);
+    try fs.parse(testing.allocator, &.{"--verbose=false"});
+    try testing.expectEqual(false, fs.getBool("verbose").?);
+}
+
+test "FlagSet --verbose=true sets true" {
+    var fs = FlagSet.init(&TEST_DEFS);
+    defer fs.deinit(testing.allocator);
+    try fs.parse(testing.allocator, &.{"--verbose=true"});
+    try testing.expectEqual(true, fs.getBool("verbose").?);
+}
+
+test "FlagSet --verbose=1 sets true" {
+    var fs = FlagSet.init(&TEST_DEFS);
+    defer fs.deinit(testing.allocator);
+    try fs.parse(testing.allocator, &.{"--verbose=1"});
+    try testing.expectEqual(true, fs.getBool("verbose").?);
+}
+
+test "FlagSet --verbose=0 sets false" {
+    var fs = FlagSet.init(&TEST_DEFS);
+    defer fs.deinit(testing.allocator);
+    try fs.parse(testing.allocator, &.{"--verbose=0"});
+    try testing.expectEqual(false, fs.getBool("verbose").?);
+}
+
+test "FlagSet --verbose=invalid returns InvalidBoolValue" {
+    var fs = FlagSet.init(&TEST_DEFS);
+    defer fs.deinit(testing.allocator);
+    try testing.expectError(ParseError.InvalidBoolValue, fs.parse(testing.allocator, &.{"--verbose=yes"}));
 }
