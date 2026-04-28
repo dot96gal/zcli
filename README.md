@@ -14,20 +14,6 @@ Zig のシンプルな CLI フレームワーク。
 
 ## 利用者向け
 
-### 概要
-
-zcli は CLI アプリケーションを構築するための以下のコンポーネントを提供します。
-
-| 型・定数 | 説明 |
-|---------|------|
-| `App` | コマンドのルーティングと `help` の処理 |
-| `Command` | コマンドの vtable ベースインターフェース |
-| `FlagSet` | フラグパーサー（`--long`、`-s`、`--key=val`、`--` に対応） |
-| `FlagDef` | フラグ定義（名前、短縮名、型、デフォルト値、説明） |
-| `Env` | 依存性注入コンテナ（allocator、io、stdout、stderr、ctx） |
-| `BACKGROUND` | キャンセルなしのデフォルトコンテキスト（`Env.ctx` に渡す） |
-| `ExitStatus` | 終了コード列挙型（`.success`、`.failure`、`.usageError`） |
-
 ### インストール
 
 #### 1. `build.zig.zon` に zcli を追加する。
@@ -159,6 +145,20 @@ pub fn main(env: std.process.Init) !void {
     status.exit();
 }
 ```
+
+### 使い方
+
+zcli は CLI アプリケーションを構築するための以下のコンポーネントを提供します。
+
+| 型・定数 | 説明 |
+|---------|------|
+| `App` | コマンドのルーティングと `help` の処理 |
+| `Command` | コマンドの vtable ベースインターフェース |
+| `FlagSet` | フラグパーサー（`--long`、`-s`、`--key=val`、`--` に対応） |
+| `FlagDef` | フラグ定義（名前、短縮名、型、デフォルト値、説明） |
+| `Env` | 依存性注入コンテナ（allocator、io、stdout、stderr、ctx） |
+| `BACKGROUND` | キャンセルなしのデフォルトコンテキスト（`Env.ctx` に渡す） |
+| `ExitStatus` | 終了コード列挙型（`.success`、`.failure`、`.usageError`） |
 
 ### 組み込みコマンド
 
