@@ -2,7 +2,7 @@
 
 ## プロジェクトの概要
 
-- シンプルなCLIフレームワークを開発する
+- Zig のシンプルな CLI フレームワークを開発する
 
 ## 計画ファイル
 
@@ -28,4 +28,4 @@
 
 ## コーディング規約
 
-- `.claude/rules/zig.md` を参照すること。
+- [Zig スタイルガイド](https://ziglang.org/documentation/master/#Style-Guide) に従う。
