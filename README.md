@@ -256,6 +256,7 @@ mise install
 | `mise run example-signal` | OS シグナルキャンセルの example を実行（引数は -- 以降に渡す） |
 | `mise run build-docs` | API ドキュメントを生成 |
 | `mise run serve-docs` | ドキュメントをローカルサーバーで配信（Ctrl+C で停止） |
+| `mise run check-updates` | `build.zig.zon` の依存ライブラリの更新を確認 |
 | `mise run release X.Y.Z` | バージョン更新・コミット・タグ・プッシュを一括実行（例: 1.0.0） |
 
 `example-basic` タスクの呼び出し例:
@@ -293,7 +294,9 @@ zcli/
 │       └── greet_command.zig # サンプルコマンド（キャンセル確認あり）
 ├── build.zig                 # ビルドスクリプト
 ├── build.zig.zon             # 依存パッケージ定義
-└── mise.toml                 # ツールバージョンとタスク定義
+├── mise.toml                 # ツールバージョンとタスク定義
+└── .mise/tasks/
+    └── check-updates         # 依存ライブラリの更新チェック
 ```
 
 ### 設計方針
